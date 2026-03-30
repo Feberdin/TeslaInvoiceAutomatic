@@ -6,25 +6,27 @@ Purpose:
 Input/Output:
     Home Assistant calls these functions during setup, unload, and service use.
 Important invariants:
-    A config entry is only considered ready after storage and the coordinator
-    have both initialized successfully.
+    Each entry must link to an existing `tesla_ha` config entry whose Tesla
+    cache can be reused for authentication.
 How to debug:
-    Start with Home Assistant logs during startup. They will show whether the
-    failure occurred in config validation, initial Tesla refresh, or platform
-    forwarding.
+    If setup fails, first verify that `tesla_ha` is installed, logged in, and
+    still stores a valid Tesla cache in Home Assistant.
 """
 
 from __future__ import annotations
 
+import json
 import logging
+import os
+from pathlib import Path
 
-from aiohttp import ClientSession
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, ServiceCall
-from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from homeassistant.exceptions import ConfigEntryNotReady
 import voluptuous as vol
 
 from .const import (
+    CONF_TESLA_HA_ENTRY_ID,
     DEFAULT_HISTORY_DAYS,
     DEFAULT_HISTORY_MAX_INVOICES,
     DOMAIN,
@@ -46,8 +48,6 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
         return True
 
     async def async_handle_send_latest(call: ServiceCall) -> None:
-        """Allow users to trigger an immediate invoice check."""
-
         entry_id = call.data.get("entry_id")
         if entry_id:
             coordinator = hass.data[DOMAIN].get(entry_id)
@@ -59,8 +59,6 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
             await coordinator.async_send_latest_invoice_now()
 
     async def async_handle_send_history(call: ServiceCall) -> None:
-        """Allow users to import historical invoices on demand."""
-
         entry_id = call.data.get("entry_id")
         days_back = int(call.data.get("days_back", DEFAULT_HISTORY_DAYS))
         max_invoices = int(call.data.get("max_invoices", DEFAULT_HISTORY_MAX_INVOICES))
@@ -96,10 +94,9 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
                 vol.Optional("days_back", default=DEFAULT_HISTORY_DAYS): vol.All(
                     vol.Coerce(int), vol.Range(min=1, max=3650)
                 ),
-                vol.Optional(
-                    "max_invoices",
-                    default=DEFAULT_HISTORY_MAX_INVOICES,
-                ): vol.All(vol.Coerce(int), vol.Range(min=1, max=500)),
+                vol.Optional("max_invoices", default=DEFAULT_HISTORY_MAX_INVOICES): vol.All(
+                    vol.Coerce(int), vol.Range(min=1, max=500)
+                ),
                 vol.Optional("include_processed", default=False): bool,
             }
         ),
@@ -110,9 +107,38 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up one config entry."""
 
-    session: ClientSession = async_get_clientsession(hass)
+    linked_entry_id = entry.data.get(CONF_TESLA_HA_ENTRY_ID)
+    if not linked_entry_id:
+        raise ConfigEntryNotReady(
+            "Diese Konfiguration stammt noch aus der alten Fleet-API-Version. "
+            "Bitte die Integration entfernen und mit der neuen tesla_ha-Verknuepfung "
+            "neu anlegen."
+        )
+
+    linked_entry = hass.config_entries.async_get_entry(linked_entry_id)
+    if linked_entry is None:
+        raise ConfigEntryNotReady(
+            "Die verknuepfte `tesla_ha` Integration wurde nicht gefunden."
+        )
+
+    cache_file = Path(hass.config.path(f".storage/tesla_ha_{linked_entry.entry_id}.json"))
+    cache_data = linked_entry.data.get("cache")
+    email = linked_entry.data.get("email")
+    if not email:
+        raise ConfigEntryNotReady(
+            "Die verknuepfte `tesla_ha` Integration enthaelt keine Tesla-E-Mail."
+        )
+
+    def _write_cache_if_missing() -> None:
+        os.makedirs(cache_file.parent, exist_ok=True)
+        if cache_data and not cache_file.exists():
+            with cache_file.open("w", encoding="utf-8") as handle:
+                json.dump(cache_data, handle)
+
+    await hass.async_add_executor_job(_write_cache_if_missing)
+
     store = TeslaInvoiceStore(hass, entry.entry_id)
-    coordinator = TeslaInvoiceCoordinator(hass, entry, session, store)
+    coordinator = TeslaInvoiceCoordinator(hass, entry, store, email, cache_file)
     await coordinator.async_initialize()
     await coordinator.async_config_entry_first_refresh()
     hass.data[DOMAIN][entry.entry_id] = coordinator

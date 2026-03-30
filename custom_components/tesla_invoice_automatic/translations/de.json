@@ -3,15 +3,11 @@
     "step": {
       "user": {
         "title": "Tesla Invoice Automatic",
-        "description": "Konfiguriere Tesla Fleet API und SMTP fuer den automatischen Rechnungsversand nach Ladevorgaengen.",
+        "description": "Verknuepfe eine bestehende tesla_ha Anmeldung mit SMTP fuer den automatischen Rechnungsversand nach Ladevorgaengen.",
         "data": {
+          "tesla_ha_entry_id": "Bestehende tesla_ha Verbindung",
           "vin": "Tesla VIN",
-          "access_token": "Tesla Access Token",
-          "refresh_token": "Tesla Refresh Token",
-          "client_id": "Tesla Client ID",
-          "client_secret": "Tesla Client Secret",
           "api_base_url": "Tesla API Basis-URL",
-          "token_url": "Tesla Token-URL",
           "recipient_email": "Empfaenger E-Mail",
           "sender_email": "Absender E-Mail",
           "smtp_host": "SMTP Host",
@@ -26,21 +22,20 @@
     },
     "error": {
       "required": "Dieses Feld ist erforderlich."
+    },
+    "abort": {
+      "missing_tesla_ha": "Bitte zuerst die kostenlose Integration tesla_ha einrichten und dort deinen Tesla-Login abschliessen."
     }
   },
   "options": {
     "step": {
       "init": {
         "title": "Tesla Invoice Automatic",
-        "description": "Passe Tesla- und SMTP-Einstellungen spaeter an.",
+        "description": "Passe die Verknuepfung zu tesla_ha und die SMTP-Einstellungen spaeter an.",
         "data": {
+          "tesla_ha_entry_id": "Bestehende tesla_ha Verbindung",
           "vin": "Tesla VIN",
-          "access_token": "Tesla Access Token",
-          "refresh_token": "Tesla Refresh Token",
-          "client_id": "Tesla Client ID",
-          "client_secret": "Tesla Client Secret",
           "api_base_url": "Tesla API Basis-URL",
-          "token_url": "Tesla Token-URL",
           "recipient_email": "Empfaenger E-Mail",
           "sender_email": "Absender E-Mail",
           "smtp_host": "SMTP Host",

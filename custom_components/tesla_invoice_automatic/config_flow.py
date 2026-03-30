@@ -1,16 +1,17 @@
 """Config flow for Tesla Invoice Automatic.
 
 Purpose:
-    Let operators configure Tesla API and SMTP access through the Home
-    Assistant UI with early validation and understandable field names.
+    Configure SMTP delivery and link this integration to an existing `tesla_ha`
+    setup, so Tesla login only has to be done once.
 Input/Output:
-    Receives form data from the UI and stores validated config-entry values.
+    Receives operator input from the Home Assistant UI and stores validated
+    config-entry data.
 Important invariants:
-    Required fields are checked before entry creation so runtime failures become
-    rarer and easier to understand.
+    At least one configured `tesla_ha` entry must exist, because its TeslaPy
+    cache is reused for authentication.
 How to debug:
-    If the flow refuses to continue, inspect the shown field errors first, then
-    Home Assistant logs for deeper validation details.
+    If setup aborts, first ensure the `tesla_ha` integration is installed and
+    logged in successfully. This integration depends on it.
 """
 
 from __future__ import annotations
@@ -22,46 +23,56 @@ from homeassistant import config_entries
 from homeassistant.helpers import selector
 
 from .const import (
-    CONF_ACCESS_TOKEN,
     CONF_API_BASE_URL,
-    CONF_CLIENT_ID,
-    CONF_CLIENT_SECRET,
     CONF_DOWNLOAD_TIMEOUT_SECONDS,
     CONF_POLL_INTERVAL_MINUTES,
     CONF_RECIPIENT_EMAIL,
-    CONF_REFRESH_TOKEN,
     CONF_SENDER_EMAIL,
     CONF_SMTP_HOST,
     CONF_SMTP_PASSWORD,
     CONF_SMTP_PORT,
     CONF_SMTP_SECURITY,
     CONF_SMTP_USERNAME,
-    CONF_TOKEN_URL,
+    CONF_TESLA_HA_ENTRY_ID,
     CONF_VIN,
     DEFAULT_API_BASE_URL,
-    DEFAULT_NAME,
     DEFAULT_POLL_INTERVAL_MINUTES,
     DEFAULT_SMTP_PORT,
     DEFAULT_TIMEOUT_SECONDS,
-    DEFAULT_TOKEN_URL,
     DOMAIN,
     SMTP_SECURITY_OPTIONS,
 )
 
 
-def _build_schema(defaults: dict[str, Any] | None = None) -> vol.Schema:
+def _build_schema(hass, defaults: dict[str, Any] | None = None) -> vol.Schema:
     """Create one reusable config schema for setup and options."""
 
     data = defaults or {}
+    tesla_entries = hass.config_entries.async_entries("tesla_ha")
+    options = [
+        selector.SelectOptionDict(
+            value=entry.entry_id,
+            label=entry.title or entry.data.get("email", entry.entry_id),
+        )
+        for entry in tesla_entries
+    ]
+
     return vol.Schema(
         {
+            vol.Required(
+                CONF_TESLA_HA_ENTRY_ID,
+                default=data.get(
+                    CONF_TESLA_HA_ENTRY_ID,
+                    options[0]["value"] if options else "",
+                ),
+            ): selector.SelectSelector(
+                selector.SelectSelectorConfig(
+                    options=options,
+                    mode=selector.SelectSelectorMode.DROPDOWN,
+                )
+            ),
             vol.Required(CONF_VIN, default=data.get(CONF_VIN, "")): str,
-            vol.Required(CONF_ACCESS_TOKEN, default=data.get(CONF_ACCESS_TOKEN, "")): str,
-            vol.Optional(CONF_REFRESH_TOKEN, default=data.get(CONF_REFRESH_TOKEN, "")): str,
-            vol.Optional(CONF_CLIENT_ID, default=data.get(CONF_CLIENT_ID, "")): str,
-            vol.Optional(CONF_CLIENT_SECRET, default=data.get(CONF_CLIENT_SECRET, "")): str,
             vol.Required(CONF_API_BASE_URL, default=data.get(CONF_API_BASE_URL, DEFAULT_API_BASE_URL)): str,
-            vol.Required(CONF_TOKEN_URL, default=data.get(CONF_TOKEN_URL, DEFAULT_TOKEN_URL)): str,
             vol.Required(CONF_RECIPIENT_EMAIL, default=data.get(CONF_RECIPIENT_EMAIL, "")): str,
             vol.Required(CONF_SENDER_EMAIL, default=data.get(CONF_SENDER_EMAIL, "")): str,
             vol.Required(CONF_SMTP_HOST, default=data.get(CONF_SMTP_HOST, "")): str,
@@ -92,17 +103,20 @@ def _build_schema(defaults: dict[str, Any] | None = None) -> vol.Schema:
 class TeslaInvoiceAutomaticConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Config flow implementation."""
 
-    VERSION = 1
+    VERSION = 2
 
     async def async_step_user(self, user_input: dict[str, Any] | None = None):
         """Handle the initial setup step."""
 
+        if not self.hass.config_entries.async_entries("tesla_ha"):
+            return self.async_abort(reason="missing_tesla_ha")
+
         errors: dict[str, str] = {}
         if user_input is not None:
-            if not user_input[CONF_VIN].strip():
+            if not user_input[CONF_TESLA_HA_ENTRY_ID].strip():
+                errors[CONF_TESLA_HA_ENTRY_ID] = "required"
+            elif not user_input[CONF_VIN].strip():
                 errors[CONF_VIN] = "required"
-            elif not user_input[CONF_ACCESS_TOKEN].strip():
-                errors[CONF_ACCESS_TOKEN] = "required"
             elif not user_input[CONF_RECIPIENT_EMAIL].strip():
                 errors[CONF_RECIPIENT_EMAIL] = "required"
             elif not user_input[CONF_SMTP_HOST].strip():
@@ -117,7 +131,7 @@ class TeslaInvoiceAutomaticConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         return self.async_show_form(
             step_id="user",
-            data_schema=_build_schema(user_input),
+            data_schema=_build_schema(self.hass, user_input),
             errors=errors,
         )
 
@@ -143,6 +157,6 @@ class TeslaInvoiceAutomaticOptionsFlow(config_entries.OptionsFlow):
         defaults = {**self.config_entry.data, **self.config_entry.options}
         return self.async_show_form(
             step_id="init",
-            data_schema=_build_schema(defaults),
+            data_schema=_build_schema(self.hass, defaults),
             errors={},
         )

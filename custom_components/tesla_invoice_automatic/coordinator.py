@@ -21,17 +21,16 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
-from aiohttp import ClientSession
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
-from .api import TeslaFleetApiClient
+from .api import TeslaApiClient
 from .const import (
     CONF_POLL_INTERVAL_MINUTES,
     COORDINATOR_NAME,
-    DEFAULT_POLL_INTERVAL_MINUTES,
     DEFAULT_HISTORY_MAX_INVOICES,
+    DEFAULT_POLL_INTERVAL_MINUTES,
     DOMAIN,
     INVOICE_DIRECTORY_NAME,
 )
@@ -50,11 +49,15 @@ class TeslaInvoiceCoordinator(DataUpdateCoordinator[ProcessingResult]):
         self,
         hass: HomeAssistant,
         entry: ConfigEntry,
-        session: ClientSession,
         store: TeslaInvoiceStore,
+        email: str,
+        cache_file: Path,
     ) -> None:
         update_interval_seconds = int(
-            entry.options.get(CONF_POLL_INTERVAL_MINUTES, entry.data.get(CONF_POLL_INTERVAL_MINUTES, DEFAULT_POLL_INTERVAL_MINUTES))
+            entry.options.get(
+                CONF_POLL_INTERVAL_MINUTES,
+                entry.data.get(CONF_POLL_INTERVAL_MINUTES, DEFAULT_POLL_INTERVAL_MINUTES),
+            )
         ) * 60
         super().__init__(
             hass,
@@ -64,7 +67,7 @@ class TeslaInvoiceCoordinator(DataUpdateCoordinator[ProcessingResult]):
         )
         self.config_entry = entry
         self._store = store
-        self._api = TeslaFleetApiClient(session, self.runtime_config)
+        self._api = TeslaApiClient(email, cache_file, self.runtime_config)
         self._state = IntegrationState()
         self.data = ProcessingResult([], None, None, None, None, None, 0)
 
@@ -125,7 +128,7 @@ class TeslaInvoiceCoordinator(DataUpdateCoordinator[ProcessingResult]):
     ) -> ProcessingResult:
         """Fetch Tesla sessions, filter them, and send matching invoices."""
 
-        sessions = await self._api.async_get_charging_sessions()
+        sessions = await self.hass.async_add_executor_job(self._api.get_charging_sessions)
         candidate_sessions = filter_sessions_by_age(sessions, days_back=days_back)
         if not include_processed:
             candidate_sessions = select_pending_sessions(
@@ -135,7 +138,10 @@ class TeslaInvoiceCoordinator(DataUpdateCoordinator[ProcessingResult]):
 
         sessions_to_process = list(reversed(candidate_sessions[:max_invoices]))
         for session in sessions_to_process:
-            pdf_content = await self._api.async_download_invoice_pdf(session.invoice_id)
+            pdf_content = await self.hass.async_add_executor_job(
+                self._api.download_invoice_pdf,
+                session.invoice_id,
+            )
             pdf_path = await self._async_save_invoice_file(session.invoice_id, pdf_content)
             await self.hass.async_add_executor_job(
                 send_invoice_email,
