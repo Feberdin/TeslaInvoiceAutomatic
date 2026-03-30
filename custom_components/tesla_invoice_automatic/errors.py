@@ -18,16 +18,8 @@ class TeslaInvoiceAutomaticError(Exception):
     """Base integration error."""
 
 
-class TeslaApiError(TeslaInvoiceAutomaticError):
-    """Raised when the Tesla Fleet API returns an unexpected response."""
-
-
-class TeslaAuthenticationError(TeslaInvoiceAutomaticError):
-    """Raised when Tesla OAuth credentials are missing or rejected."""
-
-
 class InvoiceDownloadError(TeslaInvoiceAutomaticError):
-    """Raised when a PDF invoice cannot be downloaded or saved."""
+    """Raised when a PDF invoice cannot be found, read, or saved."""
 
 
 class EmailDeliveryError(TeslaInvoiceAutomaticError):

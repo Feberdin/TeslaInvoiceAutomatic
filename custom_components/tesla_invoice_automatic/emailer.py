@@ -36,7 +36,7 @@ from .const import (
     SMTP_SECURITY_STARTTLS,
 )
 from .errors import EmailDeliveryError
-from .models import ChargingInvoiceSession
+from .models import InvoicePdfFile
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -67,7 +67,7 @@ def validate_email_config(config: dict[str, Any]) -> None:
 
 def send_invoice_email(
     config: dict[str, Any],
-    session: ChargingInvoiceSession,
+    invoice_file: InvoicePdfFile,
     pdf_content: bytes,
     pdf_path: Path,
 ) -> None:
@@ -76,7 +76,7 @@ def send_invoice_email(
     validate_email_config(config)
     if not pdf_content:
         raise EmailDeliveryError(
-            f"Rechnung {session.invoice_id} enthaelt keine PDF-Daten und kann nicht versendet werden."
+            f"Rechnung {invoice_file.file_name} enthaelt keine PDF-Daten und kann nicht versendet werden."
         )
 
     host = str(config[CONF_SMTP_HOST]).strip()
@@ -88,10 +88,10 @@ def send_invoice_email(
     security = str(config.get(CONF_SMTP_SECURITY) or SMTP_SECURITY_STARTTLS).strip()
 
     message = EmailMessage()
-    message["Subject"] = f"Tesla Lade-Rechnung {session.invoice_id}"
+    message["Subject"] = f"Tesla Lade-Rechnung {invoice_file.file_name}"
     message["From"] = sender
     message["To"] = recipient
-    message.set_content(_build_message_body(session, pdf_path))
+    message.set_content(_build_message_body(invoice_file, pdf_path))
     message.add_attachment(
         pdf_content,
         maintype="application",
@@ -127,7 +127,7 @@ def send_invoice_email(
 
     _LOGGER.info(
         "Tesla-Rechnung %s erfolgreich per E-Mail an %s versendet.",
-        session.invoice_id,
+        invoice_file.file_name,
         recipient,
     )
 
@@ -139,22 +139,14 @@ def _login_if_needed(smtp: smtplib.SMTP, username: str, password: str) -> None:
         smtp.login(username, password)
 
 
-def _build_message_body(session: ChargingInvoiceSession, pdf_path: Path) -> str:
+def _build_message_body(invoice_file: InvoicePdfFile, pdf_path: Path) -> str:
     """Create a friendly, support-oriented email body."""
 
-    charged_at = session.charged_at.isoformat() if session.charged_at else "unbekannt"
-    location = session.location_name or "unbekannter Standort"
-    energy = (
-        f"{session.energy_added_kwh:.2f} kWh"
-        if session.energy_added_kwh is not None
-        else "unbekannt"
-    )
     return (
         "Automatisch versendete Tesla Lade-Rechnung.\n\n"
-        f"Invoice-ID: {session.invoice_id}\n"
-        f"Charge-Session-ID: {session.session_id}\n"
-        f"Zeitpunkt: {charged_at}\n"
-        f"Standort: {location}\n"
-        f"Energie: {energy}\n"
-        f"Lokal gespeichert unter: {pdf_path}\n"
+        f"Datei: {invoice_file.file_name}\n"
+        f"Datei-ID: {invoice_file.file_id}\n"
+        f"Letzte Aenderung: {invoice_file.modified_at.isoformat()}\n"
+        f"Dateigroesse: {invoice_file.size_bytes} Bytes\n"
+        f"Quelle: {pdf_path}\n"
     )

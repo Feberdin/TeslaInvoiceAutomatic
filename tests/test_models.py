@@ -1,101 +1,69 @@
-"""Tests for invoice parsing and pending-session selection.
+"""Tests for local PDF selection and age filtering.
 
 Purpose:
-    Verify the pure business logic that decides which Tesla charging sessions
-    still need invoice processing.
+    Verify the pure business logic that decides which locally downloaded Tesla
+    PDFs still need processing.
 Input/Output:
-    Uses synthetic Tesla API payloads and asserts deterministic parsed results.
+    Uses synthetic file metadata and asserts deterministic selection results.
 Important invariants:
-    Only sessions with both session ID and invoice ID are eligible, and already
-    processed invoice IDs must be filtered out.
+    File IDs must stay stable and already processed files must be filtered out.
 How to debug:
-    Run `pytest -q` and compare the failing payload field names with the parser
-    expectations in `models.py`.
+    Run `pytest -q` and compare the generated file IDs with the persisted state.
 """
 
 from datetime import datetime, timezone
+from pathlib import Path
+from tempfile import TemporaryDirectory
 
 from custom_components.tesla_invoice_automatic.models import (
-    filter_sessions_by_age,
-    parse_charging_history,
-    select_pending_sessions,
+    build_invoice_pdf_file,
+    filter_files_by_age,
+    select_pending_files,
 )
 
 
-def test_parse_charging_history_sorts_newest_first() -> None:
-    payload = {
-        "data": [
-            {
-                "chargeSessionId": "older-session",
-                "invoiceId": "inv-older",
-                "chargeStopDateTime": "2026-03-29T10:00:00Z",
-            },
-            {
-                "chargeSessionId": "newer-session",
-                "invoiceId": "inv-newer",
-                "chargeStopDateTime": "2026-03-30T12:00:00Z",
-            },
-        ]
-    }
+def test_build_invoice_pdf_file_contains_stable_metadata() -> None:
+    with TemporaryDirectory() as tmp_dir:
+        pdf_path = Path(tmp_dir) / "invoice.pdf"
+        pdf_path.write_bytes(b"pdf-data")
 
-    sessions = parse_charging_history(payload)
+        invoice_file = build_invoice_pdf_file(pdf_path)
 
-    assert [session.invoice_id for session in sessions] == ["inv-newer", "inv-older"]
+        assert invoice_file.file_name == "invoice.pdf"
+        assert invoice_file.file_path == pdf_path
+        assert invoice_file.size_bytes == 8
+        assert invoice_file.file_id.startswith("invoice.pdf:8:")
 
 
-def test_parse_charging_history_skips_items_without_invoice_or_session() -> None:
-    payload = {
-        "data": [
-            {"chargeSessionId": "missing-invoice"},
-            {"invoiceId": "missing-session"},
-            {"chargeSessionId": "ok", "invoiceId": "inv-ok"},
-        ]
-    }
+def test_select_pending_files_filters_processed_ids() -> None:
+    with TemporaryDirectory() as tmp_dir:
+        first = Path(tmp_dir) / "first.pdf"
+        second = Path(tmp_dir) / "second.pdf"
+        first.write_bytes(b"a")
+        second.write_bytes(b"b")
 
-    sessions = parse_charging_history(payload)
+        files = [build_invoice_pdf_file(first), build_invoice_pdf_file(second)]
+        pending = select_pending_files(files, {files[1].file_id})
 
-    assert len(sessions) == 1
-    assert sessions[0].session_id == "ok"
-    assert sessions[0].invoice_id == "inv-ok"
+        assert [item.file_name for item in pending] == ["first.pdf"]
 
 
-def test_select_pending_sessions_filters_processed_invoice_ids() -> None:
-    sessions = parse_charging_history(
-        {
-            "data": [
-                {"chargeSessionId": "s1", "invoiceId": "inv-1"},
-                {"chargeSessionId": "s2", "invoiceId": "inv-2"},
-            ]
-        }
-    )
+def test_filter_files_by_age_keeps_only_requested_window() -> None:
+    with TemporaryDirectory() as tmp_dir:
+        old_file = Path(tmp_dir) / "old.pdf"
+        recent_file = Path(tmp_dir) / "recent.pdf"
+        old_file.write_bytes(b"old")
+        recent_file.write_bytes(b"recent")
 
-    pending = select_pending_sessions(sessions, {"inv-2"})
+        old_invoice = build_invoice_pdf_file(old_file)
+        recent_invoice = build_invoice_pdf_file(recent_file)
+        old_invoice.modified_at = datetime(2025, 1, 1, 12, 0, tzinfo=timezone.utc)
+        recent_invoice.modified_at = datetime(2026, 3, 15, 12, 0, tzinfo=timezone.utc)
 
-    assert [session.invoice_id for session in pending] == ["inv-1"]
+        filtered = filter_files_by_age(
+            [old_invoice, recent_invoice],
+            days_back=30,
+            now=datetime(2026, 3, 30, 12, 0, tzinfo=timezone.utc),
+        )
 
-
-def test_filter_sessions_by_age_keeps_only_requested_window() -> None:
-    sessions = parse_charging_history(
-        {
-            "data": [
-                {
-                    "chargeSessionId": "old",
-                    "invoiceId": "inv-old",
-                    "chargeStopDateTime": "2025-01-01T12:00:00Z",
-                },
-                {
-                    "chargeSessionId": "recent",
-                    "invoiceId": "inv-recent",
-                    "chargeStopDateTime": "2026-03-15T12:00:00Z",
-                },
-            ]
-        }
-    )
-
-    filtered = filter_sessions_by_age(
-        sessions,
-        days_back=30,
-        now=datetime(2026, 3, 30, 12, 0, tzinfo=timezone.utc),
-    )
-
-    assert [session.invoice_id for session in filtered] == ["inv-recent"]
+        assert [item.file_name for item in filtered] == ["recent.pdf"]

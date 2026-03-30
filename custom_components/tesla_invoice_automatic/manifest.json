@@ -12,8 +12,6 @@
   "loggers": [
     "custom_components.tesla_invoice_automatic"
   ],
-  "requirements": [
-    "teslapy==2.9.0"
-  ],
-  "version": "0.2.0"
+  "requirements": [],
+  "version": "0.3.0"
 }

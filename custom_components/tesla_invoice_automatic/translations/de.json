@@ -3,11 +3,10 @@
     "step": {
       "user": {
         "title": "Tesla Invoice Automatic",
-        "description": "Verknuepfe eine bestehende tesla_ha Anmeldung mit SMTP fuer den automatischen Rechnungsversand nach Ladevorgaengen.",
+        "description": "Ueberwache einen lokalen Ordner mit echten Tesla-PDFs und versende neue Dateien automatisch per E-Mail.",
         "data": {
-          "tesla_ha_entry_id": "Bestehende tesla_ha Verbindung",
-          "vin": "Tesla VIN",
-          "api_base_url": "Tesla API Basis-URL",
+          "watch_directory": "PDF-Ueberwachungsordner",
+          "file_pattern": "Dateimuster",
           "recipient_email": "Empfaenger E-Mail",
           "sender_email": "Absender E-Mail",
           "smtp_host": "SMTP Host",
@@ -15,27 +14,23 @@
           "smtp_username": "SMTP Benutzername",
           "smtp_password": "SMTP Passwort",
           "smtp_security": "SMTP Sicherheit",
-          "poll_interval_minutes": "Pruefintervall in Minuten",
-          "download_timeout_seconds": "Download-Timeout in Sekunden"
+          "poll_interval_minutes": "Pruefintervall in Minuten"
         }
       }
     },
     "error": {
-      "required": "Dieses Feld ist erforderlich."
-    },
-    "abort": {
-      "missing_tesla_ha": "Bitte zuerst die kostenlose Integration tesla_ha einrichten und dort deinen Tesla-Login abschliessen."
+      "required": "Dieses Feld ist erforderlich.",
+      "absolute_path": "Bitte einen absoluten Ordnerpfad angeben."
     }
   },
   "options": {
     "step": {
       "init": {
         "title": "Tesla Invoice Automatic",
-        "description": "Passe die Verknuepfung zu tesla_ha und die SMTP-Einstellungen spaeter an.",
+        "description": "Passe den ueberwachten PDF-Ordner und die SMTP-Einstellungen spaeter an.",
         "data": {
-          "tesla_ha_entry_id": "Bestehende tesla_ha Verbindung",
-          "vin": "Tesla VIN",
-          "api_base_url": "Tesla API Basis-URL",
+          "watch_directory": "PDF-Ueberwachungsordner",
+          "file_pattern": "Dateimuster",
           "recipient_email": "Empfaenger E-Mail",
           "sender_email": "Absender E-Mail",
           "smtp_host": "SMTP Host",
@@ -43,8 +38,7 @@
           "smtp_username": "SMTP Benutzername",
           "smtp_password": "SMTP Passwort",
           "smtp_security": "SMTP Sicherheit",
-          "poll_interval_minutes": "Pruefintervall in Minuten",
-          "download_timeout_seconds": "Download-Timeout in Sekunden"
+          "poll_interval_minutes": "Pruefintervall in Minuten"
         }
       }
     }
@@ -52,7 +46,7 @@
   "services": {
     "send_latest_invoice": {
       "name": "Neueste Rechnung senden",
-      "description": "Prueft sofort auf neue Tesla-Rechnungen und versendet sie per E-Mail.",
+      "description": "Prueft sofort den PDF-Ordner und versendet neue Rechnungen per E-Mail.",
       "fields": {
         "entry_id": {
           "name": "Config Entry ID",
@@ -62,7 +56,7 @@
     },
     "send_historical_invoices": {
       "name": "Historische Rechnungen senden",
-      "description": "Importiert und versendet aeltere Tesla-Rechnungen aus der Ladehistorie.",
+      "description": "Importiert und versendet aeltere Tesla-PDFs aus dem ueberwachten Ordner.",
       "fields": {
         "entry_id": {
           "name": "Config Entry ID",
@@ -70,7 +64,7 @@
         },
         "days_back": {
           "name": "Tage rueckwirkend",
-          "description": "Wie viele Tage Ladehistorie beruecksichtigt werden sollen."
+          "description": "Wie viele Tage Dateihistorie beruecksichtigt werden sollen."
         },
         "max_invoices": {
           "name": "Maximale Rechnungen",

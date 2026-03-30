@@ -30,6 +30,8 @@ from .const import (
     ATTR_LAST_INVOICE_ID,
     ATTR_LAST_SESSION_ID,
     ATTR_PENDING_INVOICE_COUNT,
+    ATTR_WATCH_DIRECTORY,
+    CONF_WATCH_DIRECTORY,
     DEFAULT_NAME,
     MANUFACTURER,
 )
@@ -85,4 +87,5 @@ class TeslaInvoiceStatusSensor(CoordinatorEntity[TeslaInvoiceCoordinator], Senso
             ATTR_PENDING_INVOICE_COUNT: self.coordinator.data.pending_invoice_count,
             ATTR_LAST_HISTORY_IMPORT_AT: self.coordinator.data.last_history_import_at,
             ATTR_LAST_HISTORY_DAYS: self.coordinator.data.last_history_days,
+            ATTR_WATCH_DIRECTORY: self.coordinator.runtime_config.get(CONF_WATCH_DIRECTORY),
         }

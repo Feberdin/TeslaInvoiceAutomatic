@@ -1,8 +1,8 @@
-"""Persistent state storage for processed Tesla invoices.
+"""Persistent state storage for processed Tesla PDF files.
 
 Purpose:
-    Remember which invoice IDs were already emailed so the integration does not
-    resend the same PDF after every restart or polling cycle.
+    Remember which PDF file IDs were already emailed so the integration does not
+    resend the same file after every restart or polling cycle.
 Input/Output:
     Reads and writes Home Assistant storage records under one stable key.
 Important invariants:
@@ -10,7 +10,7 @@ Important invariants:
     removed while preserving deterministic order.
 How to debug:
     Inspect the stored state file in Home Assistant's `.storage` directory and
-    compare it with the invoice IDs returned by the Tesla charging history API.
+    compare it with the generated file IDs from the watched PDF directory.
 """
 
 from __future__ import annotations
