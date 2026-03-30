@@ -1,0 +1,17 @@
+{
+  "domain": "tesla_invoice_automatic",
+  "name": "Tesla Invoice Automatic",
+  "codeowners": [
+    "@Feberdin"
+  ],
+  "config_flow": true,
+  "documentation": "https://github.com/Feberdin/TeslaInvoiceAutomatic",
+  "integration_type": "service",
+  "iot_class": "cloud_polling",
+  "issue_tracker": "https://github.com/Feberdin/TeslaInvoiceAutomatic/issues",
+  "loggers": [
+    "custom_components.tesla_invoice_automatic"
+  ],
+  "requirements": [],
+  "version": "0.1.0"
+}

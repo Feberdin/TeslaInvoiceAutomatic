@@ -1,0 +1,31 @@
+send_latest_invoice:
+  name: Send latest invoice
+  description: Check Tesla charging history immediately and email newly discovered invoices.
+  fields:
+    entry_id:
+      name: Config entry ID
+      description: Optional. If omitted, all configured Tesla Invoice Automatic entries are refreshed.
+      example: "abc123def456"
+send_historical_invoices:
+  name: Send historical invoices
+  description: Import and email older Tesla invoices from the charging history.
+  fields:
+    entry_id:
+      name: Config entry ID
+      description: Optional. If omitted, all configured Tesla Invoice Automatic entries are refreshed.
+      example: "abc123def456"
+    days_back:
+      name: Days back
+      description: How many days of charging history should be considered.
+      example: 365
+      default: 365
+    max_invoices:
+      name: Maximum invoices
+      description: Maximum number of invoices to send in one run.
+      example: 50
+      default: 50
+    include_processed:
+      name: Include already processed invoices
+      description: If true, resend invoices that were already sent before.
+      example: false
+      default: false

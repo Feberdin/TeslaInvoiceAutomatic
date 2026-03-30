@@ -1,0 +1,91 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Tesla Invoice Automatic",
+        "description": "Konfiguriere Tesla Fleet API und SMTP fuer den automatischen Rechnungsversand nach Ladevorgaengen.",
+        "data": {
+          "vin": "Tesla VIN",
+          "access_token": "Tesla Access Token",
+          "refresh_token": "Tesla Refresh Token",
+          "client_id": "Tesla Client ID",
+          "client_secret": "Tesla Client Secret",
+          "api_base_url": "Tesla API Basis-URL",
+          "token_url": "Tesla Token-URL",
+          "recipient_email": "Empfaenger E-Mail",
+          "sender_email": "Absender E-Mail",
+          "smtp_host": "SMTP Host",
+          "smtp_port": "SMTP Port",
+          "smtp_username": "SMTP Benutzername",
+          "smtp_password": "SMTP Passwort",
+          "smtp_security": "SMTP Sicherheit",
+          "poll_interval_minutes": "Pruefintervall in Minuten",
+          "download_timeout_seconds": "Download-Timeout in Sekunden"
+        }
+      }
+    },
+    "error": {
+      "required": "Dieses Feld ist erforderlich."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Tesla Invoice Automatic",
+        "description": "Passe Tesla- und SMTP-Einstellungen spaeter an.",
+        "data": {
+          "vin": "Tesla VIN",
+          "access_token": "Tesla Access Token",
+          "refresh_token": "Tesla Refresh Token",
+          "client_id": "Tesla Client ID",
+          "client_secret": "Tesla Client Secret",
+          "api_base_url": "Tesla API Basis-URL",
+          "token_url": "Tesla Token-URL",
+          "recipient_email": "Empfaenger E-Mail",
+          "sender_email": "Absender E-Mail",
+          "smtp_host": "SMTP Host",
+          "smtp_port": "SMTP Port",
+          "smtp_username": "SMTP Benutzername",
+          "smtp_password": "SMTP Passwort",
+          "smtp_security": "SMTP Sicherheit",
+          "poll_interval_minutes": "Pruefintervall in Minuten",
+          "download_timeout_seconds": "Download-Timeout in Sekunden"
+        }
+      }
+    }
+  },
+  "services": {
+    "send_latest_invoice": {
+      "name": "Neueste Rechnung senden",
+      "description": "Prueft sofort auf neue Tesla-Rechnungen und versendet sie per E-Mail.",
+      "fields": {
+        "entry_id": {
+          "name": "Config Entry ID",
+          "description": "Optional. Wenn leer, werden alle konfigurierten Eintraege aktualisiert."
+        }
+      }
+    },
+    "send_historical_invoices": {
+      "name": "Historische Rechnungen senden",
+      "description": "Importiert und versendet aeltere Tesla-Rechnungen aus der Ladehistorie.",
+      "fields": {
+        "entry_id": {
+          "name": "Config Entry ID",
+          "description": "Optional. Wenn leer, werden alle konfigurierten Eintraege aktualisiert."
+        },
+        "days_back": {
+          "name": "Tage rueckwirkend",
+          "description": "Wie viele Tage Ladehistorie beruecksichtigt werden sollen."
+        },
+        "max_invoices": {
+          "name": "Maximale Rechnungen",
+          "description": "Begrenzt, wie viele Rechnungen in einem Lauf versendet werden."
+        },
+        "include_processed": {
+          "name": "Bereits verarbeitete einschliessen",
+          "description": "Wenn aktiv, werden auch schon frueher versendete Rechnungen erneut verschickt."
+        }
+      }
+    }
+  }
+}
