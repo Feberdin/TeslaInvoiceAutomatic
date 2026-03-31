@@ -219,7 +219,7 @@ class TeslaOwnershipInvoiceClient:
         headers = {
             "Authorization": f"Bearer {access_token}",
             "X-Tesla-User-Agent": "TeslaApp/4.10.0",
-            "User-Agent": "TeslaInvoiceAutomatic/0.5.0",
+            "User-Agent": "TeslaInvoiceAutomatic/0.5.1",
             "Accept": "application/pdf" if expect_pdf else "application/json",
         }
         try:

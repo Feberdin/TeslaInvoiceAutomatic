@@ -49,6 +49,68 @@ from .const import (
 )
 
 
+def _build_tesla_ha_options(hass) -> list[selector.SelectOptionDict]:
+    """Return dropdown options for all available tesla_ha entries.
+
+    Why this exists:
+        Home Assistant renders the options dialog server-side. If the currently
+        stored tesla_ha entry disappeared or is temporarily unavailable, a
+        selector with an invalid default can break the whole dialog instead of
+        showing a recoverable field.
+    What happens here:
+        We build stable labels from the linked config entries and later inject a
+        fallback option for the currently stored value when needed.
+    """
+
+    return [
+        selector.SelectOptionDict(
+            value=entry.entry_id,
+            label=entry.title or entry.data.get("email", entry.entry_id),
+        )
+        for entry in hass.config_entries.async_entries("tesla_ha")
+    ]
+
+
+def _resolve_tesla_ha_field(defaults: dict[str, Any], hass) -> tuple[Any, Any]:
+    """Build a safe schema field for the linked tesla_ha entry.
+
+    Example:
+        Input defaults: {"tesla_ha_entry_id": "abc123"}
+        Available entries: []
+        Output: text field with default "abc123"
+
+    This keeps the settings page renderable even when tesla_ha is currently not
+    loaded or the old linked entry no longer exists.
+    """
+
+    current_value = str(defaults.get(CONF_TESLA_HA_ENTRY_ID) or "").strip()
+    options = _build_tesla_ha_options(hass)
+    option_values = {str(option["value"]) for option in options}
+
+    if current_value and current_value not in option_values:
+        options.append(
+            selector.SelectOptionDict(
+                value=current_value,
+                label=f"Nicht verfuegbare tesla_ha Verbindung ({current_value})",
+            )
+        )
+        option_values.add(current_value)
+
+    if options:
+        default_value = current_value or str(options[0]["value"])
+        field = selector.SelectSelector(
+            selector.SelectSelectorConfig(
+                options=options,
+                mode=selector.SelectSelectorMode.DROPDOWN,
+            )
+        )
+        return field, default_value
+
+    # Fallback to a plain text field instead of an empty dropdown. This is less
+    # pretty, but prevents the options dialog from crashing server-side.
+    return str, current_value
+
+
 def _build_schema(
     hass,
     defaults: dict[str, Any] | None = None,
@@ -58,28 +120,13 @@ def _build_schema(
     """Create one reusable config schema for setup and options."""
 
     data = defaults or {}
-    tesla_entries = hass.config_entries.async_entries("tesla_ha")
-    options = [
-        selector.SelectOptionDict(
-            value=entry.entry_id,
-            label=entry.title or entry.data.get("email", entry.entry_id),
-        )
-        for entry in tesla_entries
-    ]
+    tesla_ha_field, tesla_ha_default = _resolve_tesla_ha_field(data, hass)
 
     schema: dict[Any, Any] = {
         vol.Required(
             CONF_TESLA_HA_ENTRY_ID,
-            default=data.get(
-                CONF_TESLA_HA_ENTRY_ID,
-                options[0]["value"] if options else "",
-            ),
-        ): selector.SelectSelector(
-            selector.SelectSelectorConfig(
-                options=options,
-                mode=selector.SelectSelectorMode.DROPDOWN,
-            )
-        ),
+            default=tesla_ha_default,
+        ): tesla_ha_field,
         vol.Required(CONF_VIN, default=data.get(CONF_VIN, "")): str,
         vol.Required(CONF_RECIPIENT_EMAIL, default=data.get(CONF_RECIPIENT_EMAIL, "")): str,
         vol.Required(CONF_SENDER_EMAIL, default=data.get(CONF_SENDER_EMAIL, "")): str,

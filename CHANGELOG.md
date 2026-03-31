@@ -2,6 +2,11 @@
 
 Alle nennenswerten Aenderungen an `Tesla Invoice Automatic` werden hier kurz dokumentiert.
 
+## v0.5.1
+
+- Options- und Einstellungsdialog gegen fehlende oder nicht mehr verfuegbare `tesla_ha` Eintraege gehaertet.
+- Verhindert einen serverseitigen 500-Fehler beim Oeffnen der Integrationseinstellungen in Home Assistant.
+
 ## v0.5.0
 
 - Neue Status- und Statistik-Sensoren fuer Abruf, Versand, Fehlerfolgen und Monatszaehler.

@@ -169,6 +169,7 @@ Wichtige Felder fuer `send_historical_invoices`:
 ## Upgrade-Hinweise
 
 - Wenn du aus einer alten Zwischenversion kommst, entferne den alten Config-Entry und richte die Integration neu ein.
+- `v0.5.1` haertet den Einstellungsdialog gegen fehlende oder nicht mehr verfuegbare `tesla_ha` Verknuepfungen.
 - Nach Release-Updates in HACS am besten:
   1. Update installieren
   2. Home Assistant neu starten
