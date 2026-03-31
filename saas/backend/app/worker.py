@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import logging
 import time
+from pathlib import Path
 from threading import Event
 
 from app.config import get_settings
@@ -46,6 +47,7 @@ def run_worker_cycle() -> int:
 
 
 def run_worker_loop(stop_event: Event | None = None) -> None:
+    Path(settings.data_dir).mkdir(parents=True, exist_ok=True)
     create_database()
     logger.info("Worker started with interval=%s seconds", settings.sync_interval_seconds)
 

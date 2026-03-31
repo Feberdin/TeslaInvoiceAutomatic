@@ -11,6 +11,7 @@ import logging
 import os
 import signal
 import threading
+from pathlib import Path
 
 import uvicorn
 
@@ -25,6 +26,7 @@ logger = logging.getLogger(__name__)
 
 
 def main() -> None:
+    Path(settings.data_dir).mkdir(parents=True, exist_ok=True)
     stop_event = threading.Event()
     worker_thread = threading.Thread(
         target=run_worker_loop,
