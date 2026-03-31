@@ -260,6 +260,29 @@ Die Integration erzeugt standardmaessig diese Sensoren:
 - `Last Run Processed Invoices`
   Wie viele Rechnungen im letzten Lauf verarbeitet wurden.
 
+## Sensoren Im Dashboard
+
+Fuer ein Home-Assistant-Dashboard sind diese Sensoren meist am hilfreichsten:
+
+- `Invoices Sent This Month`
+  Schneller Monatszaehler fuer Abrechnungen.
+- `Invoices Sent Total`
+  Gesamtzahl aller erfolgreichen Rechnungsversendungen.
+- `Pending Invoices`
+  Zeigt, ob nach einem Lauf oder historischen Import noch Rechnungen offen sind.
+- `Status`
+  Der wichtigste Uebersichts-Sensor. Typische Werte sind `sent`, `no_new_invoices` oder `error`.
+- `Consecutive Failures`
+  Gut fuer Warnungen, wenn Tesla- oder SMTP-Abrufe mehrfach hintereinander scheitern.
+- `Last Fetch Duration`
+  Hilft, auffaellig langsame Abrufe zu erkennen.
+- `Last Invoice Sent`
+  Bestaetigt, wann zuletzt erfolgreich eine Rechnung verschickt wurde.
+- `Last Successful Fetch`
+  Zeigt, wann Tesla zuletzt erfolgreich abgefragt wurde.
+- `Last Run Processed Invoices`
+  Besonders praktisch nach `send_historical_invoices`.
+
 Wichtige Attribute am `Status`-Sensor:
 
 - `last_error`
@@ -304,6 +327,7 @@ Wichtige Felder fuer `send_historical_invoices`:
 
 - Wenn du aus einer alten Zwischenversion kommst, entferne den alten Config-Entry und richte die Integration neu ein.
 - `v0.5.1` haertet den Einstellungsdialog gegen fehlende oder nicht mehr verfuegbare `tesla_ha` Verknuepfungen.
+- `v0.5.2` stellt den Options-Flow auf das aktuelle Home-Assistant-Muster um und fuegt einen echten `Konfigurieren`-Pfad fuer neuere Home-Assistant-Versionen hinzu.
 - Nach Release-Updates in HACS am besten:
   1. Update installieren
   2. Home Assistant neu starten
@@ -343,6 +367,8 @@ Typische Fehler:
   Tesla hat wahrscheinlich einen Mobile-Endpunkt geaendert. Im Log den getesteten Pfad pruefen.
 - `E-Mail mit Tesla-Rechnung konnte nicht gesendet werden`
   SMTP-Host, Port, Sicherheitsmodus und Zugangsdaten pruefen.
+- `Der Konfigurationsfluss konnte nicht geladen werden: 500 Internal Server Error`
+  Sicherstellen, dass mindestens `v0.5.2` installiert ist, danach Home Assistant komplett neu starten und die Integration ueber `Konfigurieren` oder `Optionen` erneut oeffnen.
 
 Wo nachsehen:
 

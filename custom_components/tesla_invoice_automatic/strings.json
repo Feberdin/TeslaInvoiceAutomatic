@@ -16,13 +16,30 @@
           "smtp_security": "SMTP Sicherheit",
           "poll_interval_minutes": "Pruefintervall in Minuten"
         }
+      },
+      "reconfigure": {
+        "title": "Tesla Invoice Automatic neu konfigurieren",
+        "description": "Passe die grundlegenden Einstellungen dieser Integration an, ohne den Config-Entry loeschen zu muessen.",
+        "data": {
+          "tesla_ha_entry_id": "Bestehende tesla_ha Verbindung",
+          "vin": "Tesla VIN",
+          "recipient_email": "Empfaenger E-Mail",
+          "sender_email": "Absender E-Mail",
+          "smtp_host": "SMTP Host",
+          "smtp_port": "SMTP Port",
+          "smtp_username": "SMTP Benutzername",
+          "smtp_password": "SMTP Passwort",
+          "smtp_security": "SMTP Sicherheit",
+          "poll_interval_minutes": "Pruefintervall in Minuten"
+        }
       }
     },
     "error": {
       "required": "Dieses Feld ist erforderlich."
     },
     "abort": {
-      "missing_tesla_ha": "Bitte zuerst die kostenlose Integration tesla_ha einrichten und dort deinen Tesla-Login abschliessen."
+      "missing_tesla_ha": "Bitte zuerst die kostenlose Integration tesla_ha einrichten und dort deinen Tesla-Login abschliessen.",
+      "reconfigure_successful": "Die Integration wurde erfolgreich neu geladen."
     }
   },
   "options": {

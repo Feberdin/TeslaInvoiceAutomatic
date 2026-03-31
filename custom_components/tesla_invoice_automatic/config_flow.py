@@ -185,6 +185,20 @@ def _normalize_user_input(user_input: dict[str, Any]) -> dict[str, Any]:
     return normalized
 
 
+def _build_current_defaults(config_entry) -> dict[str, Any]:
+    """Merge config-entry data and options into one current-value snapshot.
+
+    Why this exists:
+        The integration historically stored editable values partly in
+        `config_entry.data` and partly in `config_entry.options`.
+    What happens here:
+        We always render forms from one merged view so reconfigure/options forms
+        show the values the operator actually uses today.
+    """
+
+    return {**config_entry.data, **config_entry.options}
+
+
 def _validate_required_text_fields(user_input: dict[str, Any]) -> dict[str, str]:
     """Return per-field validation errors for the setup form."""
 
@@ -234,18 +248,71 @@ class TeslaInvoiceAutomaticConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             errors=errors,
         )
 
+    async def async_step_reconfigure(self, user_input: dict[str, Any] | None = None):
+        """Allow changing the main setup data of an existing entry.
+
+        Why this exists:
+            Newer Home Assistant versions expose a dedicated "Configure" action
+            for editing config-entry data. Without this step, users are pushed
+            toward older patterns and the UI can become fragile across HA
+            updates.
+        What happens here:
+            We update the current entry in place, keep the VIN unique ID stable,
+            and remove overlapping values from `options` so stale option values
+            cannot override freshly reconfigured data later.
+        """
+
+        entry = self._get_reconfigure_entry()
+        errors: dict[str, str] = {}
+        if user_input is not None:
+            errors = _validate_required_text_fields(user_input)
+            if not errors:
+                normalized = _normalize_user_input(user_input)
+                await self.async_set_unique_id(normalized[CONF_VIN].strip())
+                self._abort_if_unique_id_mismatch()
+
+                remaining_options = dict(entry.options)
+                for key in normalized:
+                    remaining_options.pop(key, None)
+                self.hass.config_entries.async_update_entry(
+                    entry,
+                    options=remaining_options,
+                )
+
+                return self.async_update_reload_and_abort(
+                    entry,
+                    data_updates=normalized,
+                )
+
+        return self.async_show_form(
+            step_id="reconfigure",
+            data_schema=_build_schema(
+                self.hass,
+                defaults=user_input or _build_current_defaults(entry),
+                include_advanced=False,
+            ),
+            errors=errors,
+        )
+
     @staticmethod
     def async_get_options_flow(config_entry):
         """Return the options flow."""
 
-        return TeslaInvoiceAutomaticOptionsFlow(config_entry)
+        return TeslaInvoiceAutomaticOptionsFlow()
 
 
-class TeslaInvoiceAutomaticOptionsFlow(config_entries.OptionsFlow):
-    """Allow later configuration changes without deleting the entry."""
+class TeslaInvoiceAutomaticOptionsFlow(config_entries.OptionsFlowWithReload):
+    """Allow later configuration changes without deleting the entry.
 
-    def __init__(self, config_entry):
-        self.config_entry = config_entry
+    Why this exists:
+        Home Assistant now provides `self.config_entry` directly on
+        `OptionsFlow`. Older custom-integration patterns passed the config entry
+        manually and assigned `self.config_entry` inside `__init__`.
+    What happens here:
+        We use the current Home Assistant pattern and let the framework inject
+        the config entry. This keeps the options dialog compatible with newer
+        HA versions and reloads the integration automatically after changes.
+    """
 
     async def async_step_init(self, user_input: dict[str, Any] | None = None):
         """Edit integration settings."""
@@ -256,7 +323,7 @@ class TeslaInvoiceAutomaticOptionsFlow(config_entries.OptionsFlow):
                 data=_normalize_user_input(user_input),
             )
 
-        defaults = {**self.config_entry.data, **self.config_entry.options}
+        defaults = _build_current_defaults(self.config_entry)
         return self.async_show_form(
             step_id="init",
             data_schema=_build_schema(

@@ -2,6 +2,14 @@
 
 Alle nennenswerten Aenderungen an `Tesla Invoice Automatic` werden hier kurz dokumentiert.
 
+## v0.5.2
+
+- Options-Flow auf das aktuelle Home-Assistant-Muster mit `OptionsFlowWithReload` umgestellt.
+- Entfernt das alte manuelle Setzen von `self.config_entry`, das auf neueren Home-Assistant-Versionen den Einstellungsdialog stoeren kann.
+- Neuer `Reconfigure`-Pfad fuer den `Konfigurieren`-Dialog in Home Assistant.
+- Entfernt widerspruechliche Alt-Werte aus `options`, damit neu gespeicherte Basisdaten nicht verdeckt werden.
+- Ziel: den 500-Fehler beim Oeffnen oder Aendern der Integrationseinstellungen beheben.
+
 ## v0.5.1
 
 - Options- und Einstellungsdialog gegen fehlende oder nicht mehr verfuegbare `tesla_ha` Eintraege gehaertet.
