@@ -2,6 +2,12 @@
 
 Alle nennenswerten Aenderungen an `Tesla Invoice Automatic` werden hier kurz dokumentiert.
 
+## v0.5.3
+
+- GitHub-Community-Dateien vervollstaendigt: `CODE_OF_CONDUCT.md` und Pull-Request-Template hinzugefuegt.
+- README und `CONTRIBUTING.md` um direkte Verweise auf Zusammenarbeit, Sicherheit und Pull-Requests erweitert.
+- Repo-Metadaten fuer GitHub aufbereitet, damit Beschreibung und Projektkontext klarer sichtbar sind.
+
 ## v0.5.2
 
 - Options-Flow auf das aktuelle Home-Assistant-Muster mit `OptionsFlowWithReload` umgestellt.

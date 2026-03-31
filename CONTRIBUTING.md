@@ -4,6 +4,12 @@
 
 Dieses Projekt soll fuer Nicht-Programmierer nachvollziehbar bleiben. Bitte bevorzuge daher kleine, gut erklaerte Aenderungen statt grosser Umbauten.
 
+Bevor du mitarbeitest, lies bitte auch:
+
+- `CODE_OF_CONDUCT.md` fuer den erwarteten Umgangston
+- `SECURITY.md` fuer sensible Meldungen
+- das Pull-Request-Template unter `.github/PULL_REQUEST_TEMPLATE.md`
+
 ## Entwicklungsablauf
 
 1. Aenderung klein halten und Verhalten nicht unnötig mit Refactorings vermischen.
@@ -38,3 +44,4 @@ python3 -m compileall custom_components tests
 - Keine still geschluckten Exceptions.
 - Log-Meldungen sollen sagen, was passiert ist und was man als Naechstes pruefen sollte.
 - ASCII bevorzugen, damit Dateien in moeglichst vielen Umgebungen sauber bleiben.
+- Pull Requests sollten kurz erklaeren, was sich fuer Nutzer veraendert und wie die Aenderung getestet wurde.

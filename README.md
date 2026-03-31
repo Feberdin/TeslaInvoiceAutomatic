@@ -6,6 +6,19 @@
 
 Home-Assistant-Custom-Integration fuer den automatischen Download offizieller Tesla-Lade-Rechnungen als PDF und den anschliessenden Versand per E-Mail.
 
+## Community Und Zusammenarbeit
+
+Wenn du das Projekt nutzen oder erweitern willst, sind diese Dateien der beste Start:
+
+- [CONTRIBUTING.md](CONTRIBUTING.md)
+  Entwicklungsablauf, lokale Tests und Stilregeln.
+- [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)
+  Erwarteter respektvoller Umgang bei Issues, Pull Requests und Diskussionen.
+- [SECURITY.md](SECURITY.md)
+  Wie Sicherheitsprobleme verantwortungsvoll gemeldet werden sollen.
+- [Pull Request Template](.github/PULL_REQUEST_TEMPLATE.md)
+  Checkliste fuer nachvollziehbare Aenderungen.
+
 ## Installation in Home Assistant
 
 Diese Anleitung ist absichtlich sehr konkret geschrieben, damit du die
@@ -328,6 +341,7 @@ Wichtige Felder fuer `send_historical_invoices`:
 - Wenn du aus einer alten Zwischenversion kommst, entferne den alten Config-Entry und richte die Integration neu ein.
 - `v0.5.1` haertet den Einstellungsdialog gegen fehlende oder nicht mehr verfuegbare `tesla_ha` Verknuepfungen.
 - `v0.5.2` stellt den Options-Flow auf das aktuelle Home-Assistant-Muster um und fuegt einen echten `Konfigurieren`-Pfad fuer neuere Home-Assistant-Versionen hinzu.
+- `v0.5.3` ergaenzt GitHub-Community-Dateien und Repo-Metadaten. Fuer Home Assistant ist kein Neu-Einrichten noetig.
 - Nach Release-Updates in HACS am besten:
   1. Update installieren
   2. Home Assistant neu starten
