@@ -6,6 +6,140 @@
 
 Home-Assistant-Custom-Integration fuer den automatischen Download offizieller Tesla-Lade-Rechnungen als PDF und den anschliessenden Versand per E-Mail.
 
+## Installation in Home Assistant
+
+Diese Anleitung ist absichtlich sehr konkret geschrieben, damit du die
+Integration direkt in Home Assistant einrichten kannst, ohne die restliche
+README vorher komplett lesen zu muessen.
+
+### Voraussetzungen
+
+Bevor du startest, sollte Folgendes bereits vorhanden sein:
+
+- Ein laufender Home-Assistant-Server
+- HACS oder alternativ Zugriff auf den Ordner `config/custom_components/`
+- Eine funktionierende [`tesla_ha`](https://github.com/Feberdin/tesla-ha) Integration
+- Ein SMTP-Postfach oder SMTP-Relay fuer den Mailversand
+- Deine Tesla-VIN
+
+Wichtig:
+
+- Diese Integration baut auf deiner vorhandenen `tesla_ha` Anmeldung auf.
+- Du musst hier **keine** Fleet API einrichten.
+- Ohne funktionierende `tesla_ha` Verbindung kann diese Integration keine Rechnungen laden.
+
+### Schritt 1: `tesla_ha` zuerst einrichten
+
+Wenn `tesla_ha` noch nicht installiert ist:
+
+1. Das Repo [`Feberdin/tesla-ha`](https://github.com/Feberdin/tesla-ha) installieren.
+2. Home Assistant neu starten.
+3. Die Integration `tesla_ha` hinzufügen.
+4. Den Tesla-Login dort vollständig abschließen.
+5. Prüfen, ob dein Tesla in Home Assistant bereits sichtbar ist.
+
+Erst wenn das funktioniert, solltest du `Tesla Invoice Automatic` einrichten.
+
+### Schritt 2: Diese Integration über HACS installieren
+
+Empfohlener Weg:
+
+1. HACS öffnen.
+2. Oben rechts auf die drei Punkte gehen.
+3. `Custom repositories` öffnen.
+4. Als URL eintragen:
+
+   `https://github.com/Feberdin/TeslaInvoiceAutomatic`
+
+5. Als Typ `Integration` auswählen.
+6. Repository hinzufügen.
+7. Danach in HACS nach `Tesla Invoice Automatic` suchen.
+8. Die Integration installieren.
+9. Home Assistant neu starten.
+
+### Schritt 3: Alternative manuelle Installation
+
+Falls du HACS nicht nutzen willst:
+
+1. Dieses Repository herunterladen oder klonen.
+2. Den Ordner `custom_components/tesla_invoice_automatic` in deinen Home-Assistant-Konfigurationsordner kopieren:
+
+```bash
+cp -R custom_components/tesla_invoice_automatic /pfad/zu/homeassistant/config/custom_components/
+```
+
+3. Home Assistant neu starten.
+
+### Schritt 4: Integration in Home Assistant hinzufügen
+
+Nach dem Neustart:
+
+1. In Home Assistant `Einstellungen -> Geräte & Dienste` öffnen.
+2. Auf `Integration hinzufügen` klicken.
+3. Nach `Tesla Invoice Automatic` suchen.
+4. Die Integration auswählen.
+
+Im Einrichtungsdialog trägst du ein:
+
+- die bestehende `tesla_ha` Verbindung
+- deine `Tesla VIN`
+- `recipient_email`
+- `sender_email`
+- `smtp_host`
+- `smtp_port`
+- optional `smtp_username`
+- optional `smtp_password`
+- `smtp_security`
+- optional `poll_interval_minutes`
+
+### Schritt 5: Erster Funktionstest
+
+Nach der Einrichtung:
+
+1. Prüfen, ob die Sensoren der Integration angelegt wurden.
+2. Den Service `tesla_invoice_automatic.send_latest_invoice` einmal manuell ausführen.
+3. Danach die Sensoren prüfen, vor allem:
+   - `Status`
+   - `Last Successful Fetch`
+   - `Consecutive Failures`
+   - `Last Invoice Sent`
+4. Zusätzlich im Home-Assistant-Dateisystem prüfen, ob PDFs unter
+   `config/tesla_invoice_automatic/invoices/` auftauchen.
+
+### Schritt 6: Historische Rechnungen importieren
+
+Wenn du ältere Rechnungen ebenfalls brauchst:
+
+1. In `Entwicklerwerkzeuge -> Aktionen` gehen.
+2. Den Service `tesla_invoice_automatic.send_historical_invoices` wählen.
+3. Zum Beispiel diese Werte setzen:
+
+```yaml
+days_back: 365
+max_invoices: 50
+include_processed: false
+```
+
+4. Service ausführen.
+5. Danach `Pending Invoices`, `Invoices Sent Total` und `Last Run Processed Invoices` prüfen.
+
+### Wenn etwas nicht funktioniert
+
+Die häufigsten Ursachen sind:
+
+- `tesla_ha` ist nicht mehr eingeloggt
+- SMTP-Zugangsdaten sind falsch
+- Tesla stellt für den Ladevorgang noch keine Rechnung bereit
+- ein Tesla-Mobile-Endpunkt hat sich geändert
+
+Dann zuerst prüfen:
+
+1. Home-Assistant-Logs
+2. den `Status`-Sensor
+3. `Consecutive Failures`
+4. `last_error` im Status-Sensor
+5. ob `tesla_ha` selbst noch korrekt funktioniert
+
 ## Zweck / Features
 
 - Nutzt eine bestehende [`tesla_ha`](https://github.com/Feberdin/tesla-ha) Anmeldung statt eines kostenpflichtigen Fleet-API-Setups.
