@@ -50,6 +50,14 @@ class ProcessingResult:
     pending_invoice_count: int
     last_history_import_at: str | None = None
     last_history_days: int | None = None
+    last_fetch_attempt_at: str | None = None
+    last_successful_fetch_at: str | None = None
+    last_fetch_duration_seconds: float | None = None
+    last_run_status: str | None = None
+    last_run_processed_count: int = 0
+    invoices_sent_total: int = 0
+    invoices_sent_this_month: int = 0
+    consecutive_failures: int = 0
 
 
 def parse_charging_history(payload: Any) -> list[ChargingInvoiceDocument]:
@@ -146,6 +154,27 @@ def build_invoice_file_path(base_dir: Path, invoice: ChargingInvoiceDocument) ->
     if not original_name.lower().endswith(".pdf"):
         original_name = f"{original_name}.pdf"
     return base_dir / f"{charged_date}--{location}--{invoice.content_id}--{original_name}"
+
+
+def current_month_key(reference: datetime | None = None) -> str:
+    """Return a stable `YYYY-MM` key for monthly statistics."""
+
+    effective_reference = _ensure_aware(reference or datetime.now(timezone.utc))
+    return effective_reference.strftime("%Y-%m")
+
+
+def normalize_monthly_invoice_count(
+    stored_month_key: str | None,
+    count: int,
+    *,
+    reference: datetime | None = None,
+) -> tuple[str, int]:
+    """Reset the current-month counter automatically after month changes."""
+
+    active_month_key = current_month_key(reference)
+    if stored_month_key != active_month_key:
+        return active_month_key, 0
+    return active_month_key, max(count, 0)
 
 
 def _parse_datetime(value: Any) -> datetime | None:

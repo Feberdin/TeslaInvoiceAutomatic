@@ -22,7 +22,9 @@ from tests._module_loader import load_integration_module
 models = load_integration_module("models")
 
 build_invoice_file_path = models.build_invoice_file_path
+current_month_key = models.current_month_key
 filter_invoices_by_age = models.filter_invoices_by_age
+normalize_monthly_invoice_count = models.normalize_monthly_invoice_count
 parse_charging_history = models.parse_charging_history
 select_pending_invoices = models.select_pending_invoices
 
@@ -182,6 +184,32 @@ class ChargingHistoryModelTests(unittest.TestCase):
         self.assertEqual(
             path.name,
             "2026-03-15--Berlin__Germany--cid123--Invoice_123.pdf",
+        )
+
+    def test_normalize_monthly_invoice_count_resets_outdated_month(self) -> None:
+        month_key, count = normalize_monthly_invoice_count(
+            "2026-02",
+            7,
+            reference=datetime(2026, 3, 30, 12, 0, tzinfo=timezone.utc),
+        )
+
+        self.assertEqual(month_key, "2026-03")
+        self.assertEqual(count, 0)
+
+    def test_normalize_monthly_invoice_count_keeps_current_month_value(self) -> None:
+        month_key, count = normalize_monthly_invoice_count(
+            "2026-03",
+            4,
+            reference=datetime(2026, 3, 30, 12, 0, tzinfo=timezone.utc),
+        )
+
+        self.assertEqual(month_key, "2026-03")
+        self.assertEqual(count, 4)
+
+    def test_current_month_key_uses_aware_timestamp(self) -> None:
+        self.assertEqual(
+            current_month_key(datetime(2026, 12, 1, 8, 0, tzinfo=timezone.utc)),
+            "2026-12",
         )
 
 

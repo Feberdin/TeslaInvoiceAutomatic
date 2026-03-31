@@ -1,0 +1,60 @@
+name: Bug report
+description: Melde einen Fehler beim Rechnungsabruf, Versand oder Setup.
+title: "[Bug]: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Danke fuer den Report. Bitte keine Tesla-Tokens, SMTP-Passwoerter oder unveraenderte Cache-Dateien posten.
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Welche Release-Version nutzt du?
+      placeholder: v0.5.0
+    validations:
+      required: true
+  - type: input
+    id: home_assistant
+    attributes:
+      label: Home Assistant Version
+      placeholder: 2026.3.x
+    validations:
+      required: true
+  - type: input
+    id: tesla_ha
+    attributes:
+      label: tesla_ha Version
+      placeholder: main oder Release
+    validations:
+      required: false
+  - type: textarea
+    id: summary
+    attributes:
+      label: Was ist passiert?
+      description: Kurz und konkret beschreiben.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Was hast du erwartet?
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevante Logs
+      description: Bitte sensible Daten vorher entfernen.
+      render: shell
+    validations:
+      required: false
+  - type: textarea
+    id: sensor_state
+    attributes:
+      label: Relevante Sensorwerte
+      description: Zum Beispiel Status, letzte erfolgreiche Abfrage, Fehlerzaehler, letzte Rechnung.
+    validations:
+      required: false

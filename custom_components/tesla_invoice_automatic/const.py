@@ -78,5 +78,18 @@ ATTR_PENDING_INVOICE_COUNT = "pending_invoice_count"
 ATTR_LAST_HISTORY_IMPORT_AT = "last_history_import_at"
 ATTR_LAST_HISTORY_DAYS = "last_history_days"
 ATTR_LINKED_TESLA_HA = "linked_tesla_ha"
+ATTR_LAST_FETCH_ATTEMPT_AT = "last_fetch_attempt_at"
+ATTR_LAST_SUCCESSFUL_FETCH_AT = "last_successful_fetch_at"
+ATTR_LAST_FETCH_DURATION_SECONDS = "last_fetch_duration_seconds"
+ATTR_LAST_RUN_STATUS = "last_run_status"
+ATTR_LAST_RUN_PROCESSED_COUNT = "last_run_processed_count"
+ATTR_INVOICES_SENT_TOTAL = "invoices_sent_total"
+ATTR_INVOICES_SENT_THIS_MONTH = "invoices_sent_this_month"
+ATTR_CONSECUTIVE_FAILURES = "consecutive_failures"
+
+RUN_STATUS_IDLE = "idle"
+RUN_STATUS_SENT = "sent"
+RUN_STATUS_NO_NEW_INVOICES = "no_new_invoices"
+RUN_STATUS_ERROR = "error"
 
 SCAN_INTERVAL = timedelta(minutes=DEFAULT_POLL_INTERVAL_MINUTES)

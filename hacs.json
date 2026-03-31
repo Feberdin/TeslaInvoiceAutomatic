@@ -2,7 +2,7 @@
   "name": "Tesla Invoice Automatic",
   "content_in_root": false,
   "domains": [
-    "sensor"
+    "tesla_invoice_automatic"
   ],
   "homeassistant": "2024.8.0",
   "render_readme": true

@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security Hinweise
+    url: https://github.com/Feberdin/TeslaInvoiceAutomatic/blob/main/SECURITY.md
+    about: Bitte zuerst die Security-Hinweise lesen und keine sensiblen Daten oeffentlich posten.
+  - name: Releases
+    url: https://github.com/Feberdin/TeslaInvoiceAutomatic/releases
+    about: Pruefe zuerst, ob dein Problem in einer neueren Version bereits geloest wurde.

@@ -10,6 +10,8 @@ Dieses Projekt soll fuer Nicht-Programmierer nachvollziehbar bleiben. Bitte bevo
 2. Vor externen Zugriffeingriffen immer Validierung und klare Fehlermeldungen mitliefern.
 3. Kommentare sollen Absicht und Debugging-Hinweise erklaeren.
 4. Bei neuer Kernlogik immer Tests fuer Happy Path und Fehlerfall ergaenzen.
+5. Bei nutzerrelevanten Änderungen README und CHANGELOG mitpflegen.
+6. Neue Sensoren oder Services immer mit sinnvollen Debug-Hinweisen dokumentieren.
 
 ## Lokales Setup
 
@@ -21,6 +23,13 @@ python3 -m compileall custom_components tests
 
 ```bash
 python3 -m unittest discover -s tests -p 'test_*.py'
+```
+
+Optional:
+
+```bash
+pytest -q
+python3 -m compileall custom_components tests
 ```
 
 ## Stil

@@ -1,5 +1,9 @@
 # TeslaInvoiceAutomatic
 
+[![GitHub Release](https://img.shields.io/github/v/release/Feberdin/TeslaInvoiceAutomatic?sort=semver)](https://github.com/Feberdin/TeslaInvoiceAutomatic/releases)
+[![HACS Custom](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://hacs.xyz/)
+[![Tests](https://github.com/Feberdin/TeslaInvoiceAutomatic/actions/workflows/tests.yml/badge.svg)](https://github.com/Feberdin/TeslaInvoiceAutomatic/actions/workflows/tests.yml)
+
 Home-Assistant-Custom-Integration fuer den automatischen Download offizieller Tesla-Lade-Rechnungen als PDF und den anschliessenden Versand per E-Mail.
 
 ## Zweck / Features
@@ -9,20 +13,20 @@ Home-Assistant-Custom-Integration fuer den automatischen Download offizieller Te
 - Laedt offizielle Tesla-Rechnungs-PDFs direkt herunter und speichert sie lokal im Home-Assistant-Konfigurationsordner.
 - Versendet neue Rechnungen automatisch per SMTP an eine hinterlegte E-Mail-Adresse.
 - Kann aeltere Rechnungen gesammelt nachladen und optional erneut versenden.
-- Stellt einen Status-Sensor und zwei manuelle Services in Home Assistant bereit.
+- Stellt einen Status-Sensor plus mehrere Statistik- und Diagnose-Sensoren in Home Assistant bereit.
 
 ## Architektur in Kurzform
 
 - `custom_components/tesla_invoice_automatic/api.py`
   Liest den TeslaPy-Cache aus `tesla_ha`, erneuert Owner-Tokens bei Bedarf und spricht Teslas mobile-app/ownership Endpunkte fuer Ladehistorie und Invoice-PDFs an.
 - `custom_components/tesla_invoice_automatic/coordinator.py`
-  Pollt die Tesla-Historie, filtert neue bzw. historische Rechnungen, speichert PDFs und startet den Mailversand.
+  Pollt die Tesla-Historie, filtert neue bzw. historische Rechnungen, speichert PDFs, startet den Mailversand und pflegt Statuszaehler.
 - `custom_components/tesla_invoice_automatic/emailer.py`
   Baut und sendet die SMTP-E-Mail mit PDF-Anhang und klarer Fehlerbehandlung.
 - `custom_components/tesla_invoice_automatic/store.py`
-  Speichert bereits verarbeitete Tesla-`contentId` Werte persistent, damit Rechnungen nicht doppelt verschickt werden.
+  Speichert bereits verarbeitete Tesla-`contentId` Werte sowie Versand- und Fehlerstatistiken persistent.
 - `custom_components/tesla_invoice_automatic/sensor.py`
-  Zeigt den letzten Verarbeitungsstatus in Home Assistant an.
+  Exponiert Status-, Zeitstempel- und Zaehler-Sensoren fuer Dashboards und Automationen.
 
 ## Annahmen
 
@@ -34,12 +38,28 @@ Home-Assistant-Custom-Integration fuer den automatischen Download offizieller Te
 
 ## Quickstart
 
-1. Dieses Repository per HACS oder manuell nach `config/custom_components/tesla_invoice_automatic` in deine Home-Assistant-Umgebung bringen.
-2. Sicherstellen, dass [`tesla_ha`](https://github.com/Feberdin/tesla-ha) bereits eingerichtet und mit deinem Tesla verbunden ist.
+1. Sicherstellen, dass [`tesla_ha`](https://github.com/Feberdin/tesla-ha) bereits eingerichtet und mit deinem Tesla verbunden ist.
+2. Dieses Repository per HACS oder manuell nach `config/custom_components/tesla_invoice_automatic` in deine Home-Assistant-Umgebung bringen.
 3. Home Assistant neu starten.
 4. In Home Assistant `Einstellungen -> Geraete & Dienste -> Integration hinzufuegen` und nach `Tesla Invoice Automatic` suchen.
 5. Deine bestehende `tesla_ha` Verbindung, die VIN und die SMTP-Daten eintragen.
 6. Warten, bis nach dem naechsten Ladevorgang eine offizielle Tesla-Rechnung auftaucht oder den Service `tesla_invoice_automatic.send_latest_invoice` ausloesen.
+
+## Installation ueber HACS
+
+1. HACS oeffnen.
+2. `Custom repositories` aufrufen.
+3. `https://github.com/Feberdin/TeslaInvoiceAutomatic` als Repository vom Typ `Integration` hinzufuegen.
+4. `Tesla Invoice Automatic` installieren.
+5. Home Assistant neu starten.
+
+## Manuelle Installation
+
+```bash
+cp -R custom_components/tesla_invoice_automatic /pfad/zu/homeassistant/config/custom_components/
+```
+
+Danach Home Assistant neu starten und die Integration ueber die UI einrichten.
 
 ## Konfiguration
 
@@ -83,13 +103,61 @@ Standardwerte:
 5. Danach wird die Rechnung per E-Mail verschickt.
 6. Erst nach erfolgreichem Speichern und Versenden wird die Rechnung als verarbeitet markiert.
 
-## Historische Rechnungen
+## Entitaeten
 
-Service in Home Assistant:
+Die Integration erzeugt standardmaessig diese Sensoren:
 
+- `Status`
+  Letzter Abrufstatus. Typische Werte: `idle`, `no_new_invoices`, `sent`, `error`.
+- `Last Successful Fetch`
+  Zeitpunkt des letzten erfolgreichen Tesla-Abrufs.
+- `Last Invoice Sent`
+  Zeitpunkt, zu dem zuletzt erfolgreich eine Rechnung per Mail verschickt wurde.
+- `Pending Invoices`
+  Wie viele gefundene Rechnungen nach dem letzten Lauf noch offen sind.
+- `Invoices Sent Total`
+  Gesamtzahl aller erfolgreich versendeten Rechnungen.
+- `Invoices Sent This Month`
+  Anzahl der in diesem Kalendermonat versendeten Rechnungen.
+- `Consecutive Failures`
+  Wie viele Fehlerlaeufe direkt hintereinander aufgetreten sind.
+- `Last Fetch Duration`
+  Dauer des letzten Abrufs inklusive Download und Versand.
+- `Last Run Processed Invoices`
+  Wie viele Rechnungen im letzten Lauf verarbeitet wurden.
+
+Wichtige Attribute am `Status`-Sensor:
+
+- `last_error`
+- `last_fetch_attempt_at`
+- `last_successful_fetch_at`
+- `last_invoice_id`
+- `last_session_id`
+- `last_downloaded_file`
+- `last_run_status`
+- `last_run_processed_count`
+- `invoices_sent_total`
+- `invoices_sent_this_month`
+- `consecutive_failures`
+- `linked_tesla_ha`
+
+## Sinnvolle Automationen
+
+- Benachrichtige dich, wenn `Consecutive Failures > 0` oder `Status = error`.
+- Erstelle eine Monatskarte mit `Invoices Sent This Month`.
+- Zeige `Last Successful Fetch` und `Last Invoice Sent` im Fahrzeug- oder Arbeitgeber-Dashboard an.
+- Nutze `Pending Invoices`, um nach einem historischen Import zu erkennen, ob noch etwas offen ist.
+
+## Services
+
+Verfuegbare Services:
+
+- `tesla_invoice_automatic.send_latest_invoice`
+  Startet sofort eine neue Tesla-Abfrage.
 - `tesla_invoice_automatic.send_historical_invoices`
+  Holt historische Rechnungen erneut oder gesammelt nach.
 
-Wichtige Felder:
+Wichtige Felder fuer `send_historical_invoices`:
 
 - `days_back`
   Standard `365`. So weit in die Vergangenheit wird die Tesla-Ladehistorie beruecksichtigt.
@@ -97,6 +165,14 @@ Wichtige Felder:
   Standard `50`. Begrenzt die Anzahl pro Lauf.
 - `include_processed`
   Wenn `true`, werden bereits bekannte Rechnungen erneut heruntergeladen und versendet.
+
+## Upgrade-Hinweise
+
+- Wenn du aus einer alten Zwischenversion kommst, entferne den alten Config-Entry und richte die Integration neu ein.
+- Nach Release-Updates in HACS am besten:
+  1. Update installieren
+  2. Home Assistant neu starten
+  3. Sensorzustand pruefen
 
 ## So startest du es
 
@@ -118,14 +194,6 @@ Optional mit `pytest`, falls du es bereits verwendest:
 pytest -q
 ```
 
-In Home Assistant:
-
-```bash
-cp -R custom_components/tesla_invoice_automatic /pfad/zu/homeassistant/config/custom_components/
-```
-
-Oder per HACS als Custom Repository einbinden. Die Datei [hacs.json](/Users/joachim.stiegler/TeslaInvoiceAutomatic/hacs.json) ist vorbereitet.
-
 ## So debugst du es
 
 Typische Fehler:
@@ -144,9 +212,10 @@ Typische Fehler:
 Wo nachsehen:
 
 - Home Assistant Logs fuer Laufzeitfehler.
-- Sensor-Attribute fuer `last_error`, `last_invoice_id`, `last_email_at`, `last_history_import_at`, `last_history_days`, `linked_tesla_ha`.
+- Sensorwerte fuer `Status`, `Last Successful Fetch`, `Consecutive Failures` und `Invoices Sent Total`.
+- Sensorattribute fuer `last_error`, `last_invoice_id`, `last_downloaded_file`, `linked_tesla_ha`.
 - Lokale PDF-Dateien unter `config/tesla_invoice_automatic/invoices/`.
-- Home Assistant Storage pro Config-Entry fuer bereits verarbeitete Rechnungs-IDs.
+- Home Assistant Storage pro Config-Entry fuer bereits verarbeitete Rechnungs-IDs und Zaehler.
 
 Empfohlene Log-Konfiguration in `configuration.yaml`:
 
@@ -160,9 +229,32 @@ logger:
 ## Troubleshooting
 
 - Wenn keine Rechnung auftaucht, pruefe zuerst in der Tesla-App, ob fuer den Ladevorgang wirklich eine Rechnung verfuegbar ist.
+- Wenn `Last Successful Fetch` alt ist und `Consecutive Failures` steigt, ist meist der `tesla_ha` Login oder ein Tesla-Endpunkt das Problem.
 - Wenn Rechnungen doppelt verschickt werden, den Storage-Status und die gespeicherten `contentId` Werte kontrollieren.
 - Wenn du aeltere Rechnungen brauchst, den Service `tesla_invoice_automatic.send_historical_invoices` mit `days_back` und `max_invoices` ausfuehren.
 - Wenn nach Tesla- oder Home-Assistant-Updates etwas bricht, im Log auf HTTP-Status, getestete Basis-URL und Antwort-Auszug achten.
+
+## GitHub / Support
+
+- Releases: [GitHub Releases](https://github.com/Feberdin/TeslaInvoiceAutomatic/releases)
+- Changelog: [CHANGELOG.md](/Users/joachim.stiegler/TeslaInvoiceAutomatic/CHANGELOG.md)
+- Security: [SECURITY.md](/Users/joachim.stiegler/TeslaInvoiceAutomatic/SECURITY.md)
+- Fehler und Feature-Wuensche bitte ueber die Issue-Templates melden.
+
+Wenn du ein Issue erstellst, hilf am meisten mit:
+
+- Release-Version
+- Home-Assistant-Version
+- `tesla_ha` Version
+- bereinigten Logs
+- relevanten Sensorwerten
+
+## HACS / Repository-Hinweise
+
+- Das Repo ist als HACS Custom Repository vorgesehen.
+- `hacs.json` ist auf die Integrations-Domain ausgerichtet.
+- Das README ist fuer HACS-Rendering geschrieben.
+- Releases werden getaggt, damit Updates in HACS klar nachvollziehbar sind.
 
 ## Security-Hinweise
 

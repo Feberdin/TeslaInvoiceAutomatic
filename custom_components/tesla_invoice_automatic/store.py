@@ -38,6 +38,15 @@ class IntegrationState:
     last_error: str | None = None
     last_history_import_at: str | None = None
     last_history_days: int | None = None
+    last_fetch_attempt_at: str | None = None
+    last_successful_fetch_at: str | None = None
+    last_fetch_duration_seconds: float | None = None
+    last_run_status: str | None = None
+    last_run_processed_count: int = 0
+    invoices_sent_total: int = 0
+    invoices_sent_this_month: int = 0
+    invoices_sent_this_month_key: str | None = None
+    consecutive_failures: int = 0
 
     @classmethod
     def from_dict(cls, raw: dict[str, Any] | None) -> "IntegrationState":
@@ -55,6 +64,15 @@ class IntegrationState:
             last_error=raw.get("last_error"),
             last_history_import_at=raw.get("last_history_import_at"),
             last_history_days=raw.get("last_history_days"),
+            last_fetch_attempt_at=raw.get("last_fetch_attempt_at"),
+            last_successful_fetch_at=raw.get("last_successful_fetch_at"),
+            last_fetch_duration_seconds=raw.get("last_fetch_duration_seconds"),
+            last_run_status=raw.get("last_run_status"),
+            last_run_processed_count=int(raw.get("last_run_processed_count", 0) or 0),
+            invoices_sent_total=int(raw.get("invoices_sent_total", 0) or 0),
+            invoices_sent_this_month=int(raw.get("invoices_sent_this_month", 0) or 0),
+            invoices_sent_this_month_key=raw.get("invoices_sent_this_month_key"),
+            consecutive_failures=int(raw.get("consecutive_failures", 0) or 0),
         )
 
     def as_dict(self) -> dict[str, Any]:
@@ -69,6 +87,15 @@ class IntegrationState:
             "last_error": self.last_error,
             "last_history_import_at": self.last_history_import_at,
             "last_history_days": self.last_history_days,
+            "last_fetch_attempt_at": self.last_fetch_attempt_at,
+            "last_successful_fetch_at": self.last_successful_fetch_at,
+            "last_fetch_duration_seconds": self.last_fetch_duration_seconds,
+            "last_run_status": self.last_run_status,
+            "last_run_processed_count": self.last_run_processed_count,
+            "invoices_sent_total": self.invoices_sent_total,
+            "invoices_sent_this_month": self.invoices_sent_this_month,
+            "invoices_sent_this_month_key": self.invoices_sent_this_month_key,
+            "consecutive_failures": self.consecutive_failures,
         }
 
 
