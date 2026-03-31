@@ -1,0 +1,42 @@
+<?xml version="1.0"?>
+<Container version="2">
+  <Name>TeslaInvoiceAutomatic-SaaS</Name>
+  <Repository>ghcr.io/feberdin/tesla-invoice-automatic-saas:latest</Repository>
+  <Registry>https://ghcr.io</Registry>
+  <Network>bridge</Network>
+  <MyIP/>
+  <Shell>sh</Shell>
+  <Privileged>false</Privileged>
+  <Support>https://github.com/Feberdin/TeslaInvoiceAutomatic/issues</Support>
+  <Project>https://github.com/Feberdin/TeslaInvoiceAutomatic</Project>
+  <Overview>
+TeslaInvoiceAutomatic SaaS Demo fuer Unraid.
+
+Diese Unraid-App startet die Demo-Version als Einzelcontainer:
+- FastAPI Web-UI und API
+- Hintergrund-Worker
+- SQLite im gemounteten Appdata-Verzeichnis
+- PDF-Rechnungen und Mail-Outbox im Volume
+
+Hinweis:
+Dies ist die Demo-/MVP-Variante fuer Tests. Fuer produktive Nutzung mit echter Tesla OAuth, PostgreSQL, Redis und getrennten Services ist spaeter eine Compose-/Multi-Container-Variante sinnvoll.
+  </Overview>
+  <Category>Productivity:Tools:</Category>
+  <WebUI>http://[IP]:[PORT:8000]/dashboard</WebUI>
+  <TemplateURL>https://raw.githubusercontent.com/Feberdin/TeslaInvoiceAutomatic/main/unraid/TeslaInvoiceAutomatic-SaaS.xml</TemplateURL>
+  <Icon>https://raw.githubusercontent.com/Feberdin/TeslaInvoiceAutomatic/main/unraid/icon.svg</Icon>
+  <ExtraParams/>
+  <PostArgs/>
+  <CPUset/>
+  <Requires>Docker image ghcr.io/feberdin/tesla-invoice-automatic-saas:latest muss veroeffentlicht sein.</Requires>
+  <Config Name="Web UI Port" Target="8000" Default="8000" Mode="tcp" Description="Port fuer Dashboard und API" Type="Port" Display="always" Required="true" Mask="false">8000</Config>
+  <Config Name="Persistent Data Directory" Target="/data" Default="/mnt/user/appdata/tesla-invoice-automatic-saas" Mode="rw" Description="Speichert SQLite, Rechnungs-PDFs und die Demo-Mail-Outbox dauerhaft." Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata/tesla-invoice-automatic-saas</Config>
+  <Config Name="App Base URL" Target="APP_BASE_URL" Default="http://[IP]:[PORT:8000]" Mode="" Description="Basis-URL fuer Links im Dashboard." Type="Variable" Display="always" Required="true" Mask="false">http://[IP]:[PORT:8000]</Config>
+  <Config Name="Database URL" Target="DATABASE_URL" Default="sqlite:////data/local_demo.db" Mode="" Description="SQLite-Datei fuer den Demo-Betrieb. Normalerweise nicht aendern." Type="Variable" Display="advanced" Required="true" Mask="false">sqlite:////data/local_demo.db</Config>
+  <Config Name="Data Dir Variable" Target="DATA_DIR" Default="/data" Mode="" Description="Interner Speicherpfad fuer PDFs und Logs." Type="Variable" Display="advanced" Required="true" Mask="false">/data</Config>
+  <Config Name="Demo Mode" Target="DEMO_MODE" Default="true" Mode="" Description="Muss fuer diese erste Unraid-App auf true bleiben." Type="Variable" Display="advanced" Required="true" Mask="false">true</Config>
+  <Config Name="Sync Interval Seconds" Target="SYNC_INTERVAL_SECONDS" Default="1800" Mode="" Description="Intervall des Hintergrundsyncs in Sekunden. 1800 = 30 Minuten." Type="Variable" Display="advanced" Required="true" Mask="false">1800</Config>
+  <Config Name="Log Level" Target="LOG_LEVEL" Default="INFO" Mode="" Description="DEBUG, INFO, WARNING oder ERROR" Type="Variable" Display="advanced" Required="true" Mask="false">INFO</Config>
+  <Config Name="Default Demo User Email" Target="DEMO_USER_EMAIL" Default="demo@feberdin.local" Mode="" Description="Vorausgefuellte Demo-E-Mail im Dashboard." Type="Variable" Display="advanced" Required="true" Mask="false">demo@feberdin.local</Config>
+  <Config Name="Default From E-Mail" Target="DEFAULT_FROM_EMAIL" Default="no-reply@tesla-invoice-demo.local" Mode="" Description="Absender fuer den Demo-Mail-Outbox-Eintrag." Type="Variable" Display="advanced" Required="true" Mask="false">no-reply@tesla-invoice-demo.local</Config>
+</Container>

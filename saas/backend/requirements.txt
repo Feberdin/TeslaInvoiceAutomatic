@@ -1,0 +1,11 @@
+# Purpose: Python runtime dependencies for the MVP backend and worker.
+# Input/Output: Docker installs these packages before the app starts.
+# Invariants: Versions are pinned to keep the test setup reproducible.
+# Debug: If startup fails after a dependency bump, compare the old and new pinned versions.
+
+fastapi==0.115.12
+jinja2==3.1.6
+psycopg[binary]==3.2.7
+sqlalchemy==2.0.40
+uvicorn==0.34.0
+

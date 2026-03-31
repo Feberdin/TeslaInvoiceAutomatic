@@ -1,0 +1,76 @@
+<!--
+Purpose: Offer a zero-setup browser cockpit for testing the MVP end to end.
+Input/Output: The page captures user input and lets dashboard.js call the backend API.
+Invariants: The actions follow the intended onboarding order and always show the current backend state.
+Debug: If UI actions fail, compare the visible notice banner with the API logs and browser network responses.
+-->
+
+{% extends "base.html" %}
+{% block content %}
+  <section class="dashboard-grid">
+    <aside class="stack">
+      <article class="panel">
+        <p class="eyebrow">Teststeuerung</p>
+        <h2>Demo-Setup</h2>
+        <label for="user-email">Demo-E-Mail</label>
+        <input id="user-email" type="email" value="{{ default_email }}" />
+        <p class="helper">Diese MVP-Version nutzt die E-Mail als einfache Demo-Identitaet statt produktivem Login.</p>
+        <div class="button-row">
+          <button id="create-user" class="primary" type="button">Demo-Nutzer anlegen</button>
+          <button id="connect-tesla" class="secondary" type="button">Tesla Demo verbinden</button>
+        </div>
+      </article>
+
+      <article class="panel">
+        <h2>Weiterleitung</h2>
+        <label for="recipients">Empfaenger (Komma-getrennt)</label>
+        <textarea id="recipients">{{ default_email }}</textarea>
+        <p class="helper" id="recipients-preview">Noch keine Empfaenger gespeichert</p>
+        <div class="button-row">
+          <button id="save-recipients" class="secondary" type="button">Empfaenger speichern</button>
+          <button id="run-sync" class="primary" type="button">Sync jetzt ausloesen</button>
+        </div>
+      </article>
+    </aside>
+
+    <main class="stack">
+      <div id="notice" class="notice info" hidden></div>
+
+      <article class="panel">
+        <p class="eyebrow">Live-Status</p>
+        <h2>Dashboard</h2>
+        <div class="status-grid">
+          <div class="metric"><span>Nutzer</span><strong id="metric-user">neu</strong></div>
+          <div class="metric"><span>Tesla</span><strong id="metric-tesla">offen</strong></div>
+          <div class="metric"><span>Fahrzeuge</span><strong id="metric-vehicles">0</strong></div>
+          <div class="metric"><span>Rechnungen</span><strong id="metric-invoices">0</strong></div>
+          <div class="metric"><span>Letzter Sync</span><strong id="metric-sync">noch nie</strong></div>
+        </div>
+      </article>
+
+      <article class="panel">
+        <p class="eyebrow">Archiv</p>
+        <h2>Rechnungsuebersicht</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Invoice ID</th>
+              <th>Zeitpunkt</th>
+              <th>Fahrzeug</th>
+              <th>Standort</th>
+              <th>Betrag</th>
+              <th>Aktion</th>
+            </tr>
+          </thead>
+          <tbody id="invoice-body">
+            <tr>
+              <td colspan="6">Noch keine Rechnungen vorhanden. Fuehre zuerst einen Sync aus.</td>
+            </tr>
+          </tbody>
+        </table>
+      </article>
+    </main>
+  </section>
+  <script src="/static/dashboard.js"></script>
+{% endblock %}
+

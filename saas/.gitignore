@@ -1,0 +1,17 @@
+# Purpose: Ignore local runtime data, caches and developer-specific files.
+# Input/Output: Git reads this file to decide which generated files stay local only.
+# Invariants: Source code and documentation stay versioned, secrets and runtime state do not.
+# Debug: If a file is missing from Git unexpectedly, check whether it matches one of these patterns.
+
+.env
+.venv/
+__pycache__/
+*.py[cod]
+.DS_Store
+
+backend/.pytest_cache/
+backend/.coverage
+
+data/
+postgres-data/
+

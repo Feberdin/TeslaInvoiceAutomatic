@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-label="Tesla Invoice Automatic SaaS">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fff2e8"/>
+      <stop offset="100%" stop-color="#f3d4bf"/>
+    </linearGradient>
+  </defs>
+  <rect width="256" height="256" rx="48" fill="url(#bg)"/>
+  <path d="M64 66h128c10 0 18 8 18 18v88c0 10-8 18-18 18H64c-10 0-18-8-18-18V84c0-10 8-18 18-18z" fill="#fffaf5" stroke="#b94a2d" stroke-width="8"/>
+  <path d="M78 98h100" stroke="#b94a2d" stroke-width="10" stroke-linecap="round"/>
+  <path d="M78 128h64" stroke="#d67a52" stroke-width="10" stroke-linecap="round"/>
+  <path d="M78 158h78" stroke="#d67a52" stroke-width="10" stroke-linecap="round"/>
+  <circle cx="188" cy="150" r="26" fill="#b94a2d"/>
+  <path d="M188 132v36M170 150h36" stroke="#fff" stroke-width="8" stroke-linecap="round"/>
+  <path d="M128 34c16 0 31 4 44 12-11 1-20 4-28 8-7 4-12 9-16 16-4-7-9-12-16-16-8-4-17-7-28-8 13-8 28-12 44-12z" fill="#7f2213"/>
+</svg>

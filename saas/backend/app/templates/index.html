@@ -1,0 +1,42 @@
+<!--
+Purpose: Explain the MVP and offer the shortest path into the interactive demo.
+Input/Output: The user reads this page before opening the dashboard.
+Invariants: The text stays aligned with the current MVP scope: demo Tesla source, real processing flow.
+Debug: If the product description becomes outdated, update this page and the README together.
+-->
+
+{% extends "base.html" %}
+{% block content %}
+  <section class="hero">
+    <article class="panel">
+      <p class="eyebrow">Feberdin Demo Build</p>
+      <h1>Tesla Supercharger-Rechnungen automatisch holen, speichern und weiterleiten.</h1>
+      <p class="lead">
+        Diese Testversion zeigt den kompletten Kernablauf fuer dein SaaS-Projekt:
+        Tesla-Konto verbinden, neue Rechnungen erkennen, PDF speichern, Weiterleitung protokollieren
+        und alle Belege im Dashboard bereitstellen.
+      </p>
+      <div class="button-row">
+        <a class="button-link primary" href="/dashboard">Zum Dashboard</a>
+        <a class="button-link secondary" href="https://github.com/Feberdin/TeslaInvoiceAutomatic">Bestehendes Repo</a>
+      </div>
+      <ul class="feature-list">
+        <li class="feature-item"><strong>Demo-Tesla-Flow:</strong> keine echten Tesla-Credentials fuer den Ersttest noetig.</li>
+        <li class="feature-item"><strong>Docker-first:</strong> API, Worker und Datenbank laufen containerisiert und Unraid-freundlich.</li>
+        <li class="feature-item"><strong>Nachvollziehbar:</strong> PDFs, Sync-Status und Demo-Mailausgang sind direkt im Volume sichtbar.</li>
+      </ul>
+    </article>
+
+    <aside class="panel">
+      <h2>Was du direkt testen kannst</h2>
+      <ol class="steps-list">
+        <li class="step-item">Demo-Nutzer anlegen</li>
+        <li class="step-item">Demo-Tesla-Konto mit Fahrzeugen verbinden</li>
+        <li class="step-item">manuellen Sync ausloesen</li>
+        <li class="step-item">PDF-Rechnungen herunterladen</li>
+        <li class="step-item">Mail-Weiterleitung im Outbox-Log nachvollziehen</li>
+      </ol>
+    </aside>
+  </section>
+{% endblock %}
+

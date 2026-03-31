@@ -1,0 +1,61 @@
+# Purpose: Start the complete MVP stack for local tests or Unraid Docker deployments.
+# Input/Output: `docker compose up --build` reads this file and starts API, worker and database containers.
+# Invariants: API and worker share the same code and data volume; PostgreSQL stores relational data persistently.
+# Debug: Use `docker compose logs -f api worker db` when startup, sync or DB connectivity fails.
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: tesla-invoice-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: tesla_invoice
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d tesla_invoice"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: ./backend
+    container_name: tesla-invoice-api
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql+psycopg://postgres:postgres@db:5432/tesla_invoice
+      DATA_DIR: /data
+      APP_BASE_URL: http://localhost:8000
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/data
+    depends_on:
+      db:
+        condition: service_healthy
+
+  worker:
+    build:
+      context: ./backend
+    container_name: tesla-invoice-worker
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql+psycopg://postgres:postgres@db:5432/tesla_invoice
+      DATA_DIR: /data
+    command: ["python", "-m", "app.worker"]
+    volumes:
+      - ./data:/data
+    depends_on:
+      db:
+        condition: service_healthy
+

@@ -1,0 +1,32 @@
+<!--
+Purpose: Shared HTML layout for the landing page and the dashboard.
+Input/Output: Jinja fills the content blocks and the browser renders the final page.
+Invariants: Navigation and static asset references stay consistent across all pages.
+Debug: If a page loses its styling, inspect the static CSS and template inheritance starting here.
+-->
+
+<!DOCTYPE html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{{ app_name }}</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body>
+    <div class="page-shell">
+      <header class="topbar">
+        <div class="brand">{{ app_name }}</div>
+        <nav>
+          <a class="nav-link" href="/">Start</a>
+          <a class="nav-link" href="/dashboard">Dashboard</a>
+        </nav>
+      </header>
+      {% block content %}{% endblock %}
+      <footer class="footer">
+        Demo-MVP fuer den Testbetrieb auf Unraid/Docker. Produktive Tesla OAuth-, Token- und Billing-Logik folgen spaeter.
+      </footer>
+    </div>
+  </body>
+</html>
+
