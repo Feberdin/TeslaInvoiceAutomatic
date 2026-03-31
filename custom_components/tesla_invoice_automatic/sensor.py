@@ -22,6 +22,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import (
+    ATTR_LINKED_TESLA_HA,
     ATTR_LAST_DOWNLOADED_FILE,
     ATTR_LAST_EMAIL_AT,
     ATTR_LAST_ERROR,
@@ -30,9 +31,8 @@ from .const import (
     ATTR_LAST_INVOICE_ID,
     ATTR_LAST_SESSION_ID,
     ATTR_PENDING_INVOICE_COUNT,
-    ATTR_WATCH_DIRECTORY,
-    CONF_WATCH_DIRECTORY,
     DEFAULT_NAME,
+    DOMAIN,
     MANUFACTURER,
 )
 from .coordinator import TeslaInvoiceCoordinator
@@ -45,7 +45,7 @@ async def async_setup_entry(
 ) -> None:
     """Set up the Tesla invoice status sensor for one config entry."""
 
-    coordinator: TeslaInvoiceCoordinator = hass.data["tesla_invoice_automatic"][entry.entry_id]
+    coordinator: TeslaInvoiceCoordinator = hass.data[DOMAIN][entry.entry_id]
     async_add_entities([TeslaInvoiceStatusSensor(coordinator, entry.title or DEFAULT_NAME)])
 
 
@@ -87,5 +87,5 @@ class TeslaInvoiceStatusSensor(CoordinatorEntity[TeslaInvoiceCoordinator], Senso
             ATTR_PENDING_INVOICE_COUNT: self.coordinator.data.pending_invoice_count,
             ATTR_LAST_HISTORY_IMPORT_AT: self.coordinator.data.last_history_import_at,
             ATTR_LAST_HISTORY_DAYS: self.coordinator.data.last_history_days,
-            ATTR_WATCH_DIRECTORY: self.coordinator.runtime_config.get(CONF_WATCH_DIRECTORY),
+            ATTR_LINKED_TESLA_HA: self.coordinator.linked_title,
         }

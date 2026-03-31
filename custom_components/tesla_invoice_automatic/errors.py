@@ -10,7 +10,7 @@ Important invariants:
     configuration value to inspect next.
 How to debug:
     Read the exact exception class in the log first; it tells you whether to
-    inspect Tesla auth, invoice download, storage, or SMTP settings.
+    inspect Tesla auth, invoice history/download, storage, or SMTP settings.
 """
 
 
@@ -18,8 +18,16 @@ class TeslaInvoiceAutomaticError(Exception):
     """Base integration error."""
 
 
+class TeslaApiError(TeslaInvoiceAutomaticError):
+    """Raised when Tesla mobile ownership endpoints return an unexpected response."""
+
+
+class TeslaAuthenticationError(TeslaInvoiceAutomaticError):
+    """Raised when the linked Tesla owner login is missing or rejected."""
+
+
 class InvoiceDownloadError(TeslaInvoiceAutomaticError):
-    """Raised when a PDF invoice cannot be found, read, or saved."""
+    """Raised when a PDF invoice cannot be found, downloaded, or saved."""
 
 
 class EmailDeliveryError(TeslaInvoiceAutomaticError):

@@ -25,17 +25,25 @@ MANUFACTURER = "Feberdin"
 DEFAULT_NAME = "Tesla Invoice Automatic"
 DEFAULT_POLL_INTERVAL_MINUTES = 15
 DEFAULT_SMTP_PORT = 587
-DEFAULT_TIMEOUT_SECONDS = 30
 DEFAULT_HISTORY_DAYS = 365
 DEFAULT_HISTORY_MAX_INVOICES = 50
+DEFAULT_DEVICE_LANGUAGE = "de"
+DEFAULT_DEVICE_COUNTRY = "DE"
+DEFAULT_HTTP_LOCALE = "de_DE"
+DEFAULT_TIMEOUT_SECONDS = 30
+DEFAULT_OWNERSHIP_BASE_URL = "https://ownership.tesla.com/mobile-app/charging"
+FALLBACK_OWNERSHIP_BASE_URLS = (
+    DEFAULT_OWNERSHIP_BASE_URL,
+    "https://owner-api.teslamotors.com/bff/v2/mobile-app/charging",
+)
 
 COORDINATOR_NAME = "tesla_invoice_automatic_coordinator"
 STORAGE_VERSION = 1
 STORAGE_KEY = f"{DOMAIN}_state"
 INVOICE_DIRECTORY_NAME = "invoices"
 
-CONF_WATCH_DIRECTORY = "watch_directory"
-CONF_FILE_PATTERN = "file_pattern"
+CONF_TESLA_HA_ENTRY_ID = "tesla_ha_entry_id"
+CONF_VIN = "vin"
 CONF_RECIPIENT_EMAIL = "recipient_email"
 CONF_SENDER_EMAIL = "sender_email"
 CONF_SMTP_HOST = "smtp_host"
@@ -44,6 +52,10 @@ CONF_SMTP_USERNAME = "smtp_username"
 CONF_SMTP_PASSWORD = "smtp_password"
 CONF_SMTP_SECURITY = "smtp_security"
 CONF_POLL_INTERVAL_MINUTES = "poll_interval_minutes"
+CONF_DEVICE_LANGUAGE = "device_language"
+CONF_DEVICE_COUNTRY = "device_country"
+CONF_HTTP_LOCALE = "http_locale"
+CONF_OWNERSHIP_BASE_URL = "ownership_base_url"
 
 SMTP_SECURITY_STARTTLS = "starttls"
 SMTP_SECURITY_SSL = "ssl"
@@ -65,6 +77,6 @@ ATTR_LAST_SESSION_ID = "last_session_id"
 ATTR_PENDING_INVOICE_COUNT = "pending_invoice_count"
 ATTR_LAST_HISTORY_IMPORT_AT = "last_history_import_at"
 ATTR_LAST_HISTORY_DAYS = "last_history_days"
-ATTR_WATCH_DIRECTORY = "watch_directory"
+ATTR_LINKED_TESLA_HA = "linked_tesla_ha"
 
 SCAN_INTERVAL = timedelta(minutes=DEFAULT_POLL_INTERVAL_MINUTES)

@@ -11,7 +11,7 @@ Important invariants:
     Secrets are never written to logs.
 How to debug:
     Verify SMTP host, port, security mode, sender, and recipient first. Then
-    test with `LOG_LEVEL=debug` and check the exact failure class in the log.
+    check the exact failure class in the log.
 """
 
 from __future__ import annotations
@@ -36,17 +36,13 @@ from .const import (
     SMTP_SECURITY_STARTTLS,
 )
 from .errors import EmailDeliveryError
-from .models import InvoicePdfFile
+from .models import ChargingInvoiceDocument
 
 _LOGGER = logging.getLogger(__name__)
 
 
 def validate_email_config(config: dict[str, Any]) -> None:
-    """Validate SMTP configuration before any connection attempt.
-
-    Example:
-        validate_email_config({"smtp_host": "smtp.example.org", ...})
-    """
+    """Validate SMTP configuration before any connection attempt."""
 
     missing = [
         key
@@ -67,7 +63,7 @@ def validate_email_config(config: dict[str, Any]) -> None:
 
 def send_invoice_email(
     config: dict[str, Any],
-    invoice_file: InvoicePdfFile,
+    invoice: ChargingInvoiceDocument,
     pdf_content: bytes,
     pdf_path: Path,
 ) -> None:
@@ -76,7 +72,7 @@ def send_invoice_email(
     validate_email_config(config)
     if not pdf_content:
         raise EmailDeliveryError(
-            f"Rechnung {invoice_file.file_name} enthaelt keine PDF-Daten und kann nicht versendet werden."
+            f"Rechnung {invoice.file_name} enthaelt keine PDF-Daten und kann nicht versendet werden."
         )
 
     host = str(config[CONF_SMTP_HOST]).strip()
@@ -88,10 +84,10 @@ def send_invoice_email(
     security = str(config.get(CONF_SMTP_SECURITY) or SMTP_SECURITY_STARTTLS).strip()
 
     message = EmailMessage()
-    message["Subject"] = f"Tesla Lade-Rechnung {invoice_file.file_name}"
+    message["Subject"] = f"Tesla Lade-Rechnung {invoice.file_name}"
     message["From"] = sender
     message["To"] = recipient
-    message.set_content(_build_message_body(invoice_file, pdf_path))
+    message.set_content(_build_message_body(invoice, pdf_path))
     message.add_attachment(
         pdf_content,
         maintype="application",
@@ -127,7 +123,7 @@ def send_invoice_email(
 
     _LOGGER.info(
         "Tesla-Rechnung %s erfolgreich per E-Mail an %s versendet.",
-        invoice_file.file_name,
+        invoice.content_id,
         recipient,
     )
 
@@ -139,14 +135,19 @@ def _login_if_needed(smtp: smtplib.SMTP, username: str, password: str) -> None:
         smtp.login(username, password)
 
 
-def _build_message_body(invoice_file: InvoicePdfFile, pdf_path: Path) -> str:
+def _build_message_body(invoice: ChargingInvoiceDocument, pdf_path: Path) -> str:
     """Create a friendly, support-oriented email body."""
 
+    charged_at = invoice.charged_at.isoformat() if invoice.charged_at else "unbekannt"
+    location = invoice.location_name or "unbekannter Standort"
+    invoice_type = invoice.invoice_type or "unknown"
     return (
         "Automatisch versendete Tesla Lade-Rechnung.\n\n"
-        f"Datei: {invoice_file.file_name}\n"
-        f"Datei-ID: {invoice_file.file_id}\n"
-        f"Letzte Aenderung: {invoice_file.modified_at.isoformat()}\n"
-        f"Dateigroesse: {invoice_file.size_bytes} Bytes\n"
-        f"Quelle: {pdf_path}\n"
+        f"Content-ID: {invoice.content_id}\n"
+        f"Datei: {invoice.file_name}\n"
+        f"Rechnungstyp: {invoice_type}\n"
+        f"Session-ID: {invoice.session_id or 'unbekannt'}\n"
+        f"Zeitpunkt: {charged_at}\n"
+        f"Standort: {location}\n"
+        f"Lokal gespeichert unter: {pdf_path}\n"
     )

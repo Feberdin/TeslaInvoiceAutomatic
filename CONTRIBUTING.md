@@ -14,15 +14,13 @@ Dieses Projekt soll fuer Nicht-Programmierer nachvollziehbar bleiben. Bitte bevo
 ## Lokales Setup
 
 ```bash
-python3 -m venv .venv
-source .venv/bin/activate
-pip install pytest
+python3 -m compileall custom_components tests
 ```
 
 ## Tests
 
 ```bash
-pytest -q
+python3 -m unittest discover -s tests -p 'test_*.py'
 ```
 
 ## Stil

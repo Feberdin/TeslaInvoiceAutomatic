@@ -1,6 +1,6 @@
 send_latest_invoice:
   name: Send latest invoice
-  description: Scan the configured PDF folder immediately and email newly discovered invoice files.
+  description: Check Tesla charging history immediately and email newly discovered official invoice PDFs.
   fields:
     entry_id:
       name: Config entry ID
@@ -8,7 +8,7 @@ send_latest_invoice:
       example: "abc123def456"
 send_historical_invoices:
   name: Send historical invoices
-  description: Reprocess older Tesla PDF files from the configured watch folder.
+  description: Download and email older Tesla invoice PDFs from charging history.
   fields:
     entry_id:
       name: Config entry ID
@@ -16,7 +16,7 @@ send_historical_invoices:
       example: "abc123def456"
     days_back:
       name: Days back
-      description: How many days of PDF file history should be considered.
+      description: How many days of charging history should be considered.
       example: 365
       default: 365
     max_invoices:

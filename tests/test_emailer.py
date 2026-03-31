@@ -12,33 +12,47 @@ How to debug:
     `EmailDeliveryError`.
 """
 
-import pytest
+import sys
+import unittest
 
-from custom_components.tesla_invoice_automatic.const import (
-    CONF_RECIPIENT_EMAIL,
-    CONF_SENDER_EMAIL,
-    CONF_SMTP_HOST,
-    CONF_SMTP_PORT,
-)
-from custom_components.tesla_invoice_automatic.emailer import validate_email_config
-from custom_components.tesla_invoice_automatic.errors import EmailDeliveryError
+from tests._module_loader import load_integration_module
 
+const = load_integration_module("const")
+load_integration_module("errors")
+load_integration_module("models")
+emailer = load_integration_module("emailer")
 
-def test_validate_email_config_accepts_minimum_valid_values() -> None:
-    validate_email_config(
-        {
-            CONF_SMTP_HOST: "smtp.example.org",
-            CONF_SMTP_PORT: 587,
-            CONF_SENDER_EMAIL: "tesla@example.org",
-            CONF_RECIPIENT_EMAIL: "archive@example.org",
-        }
-    )
+CONF_RECIPIENT_EMAIL = const.CONF_RECIPIENT_EMAIL
+CONF_SENDER_EMAIL = const.CONF_SENDER_EMAIL
+CONF_SMTP_HOST = const.CONF_SMTP_HOST
+CONF_SMTP_PORT = const.CONF_SMTP_PORT
+EmailDeliveryError = sys.modules[
+    "custom_components.tesla_invoice_automatic.errors"
+].EmailDeliveryError
+validate_email_config = emailer.validate_email_config
 
 
-def test_validate_email_config_rejects_missing_required_fields() -> None:
-    with pytest.raises(EmailDeliveryError) as error:
-        validate_email_config({CONF_SMTP_HOST: "smtp.example.org"})
+class ValidateEmailConfigTests(unittest.TestCase):
+    """Validate the minimum SMTP configuration contract."""
 
-    assert CONF_SMTP_PORT in str(error.value)
-    assert CONF_SENDER_EMAIL in str(error.value)
-    assert CONF_RECIPIENT_EMAIL in str(error.value)
+    def test_validate_email_config_accepts_minimum_valid_values(self) -> None:
+        validate_email_config(
+            {
+                CONF_SMTP_HOST: "smtp.example.org",
+                CONF_SMTP_PORT: 587,
+                CONF_SENDER_EMAIL: "tesla@example.org",
+                CONF_RECIPIENT_EMAIL: "archive@example.org",
+            }
+        )
+
+    def test_validate_email_config_rejects_missing_required_fields(self) -> None:
+        with self.assertRaises(EmailDeliveryError) as error:
+            validate_email_config({CONF_SMTP_HOST: "smtp.example.org"})
+
+        self.assertIn(CONF_SMTP_PORT, str(error.exception))
+        self.assertIn(CONF_SENDER_EMAIL, str(error.exception))
+        self.assertIn(CONF_RECIPIENT_EMAIL, str(error.exception))
+
+
+if __name__ == "__main__":
+    unittest.main()
