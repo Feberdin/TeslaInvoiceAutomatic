@@ -12,7 +12,11 @@
   <Overview>
 TeslaInvoiceAutomatic SaaS Demo fuer Unraid.
 
-Diese Unraid-App startet die Demo-Version als Einzelcontainer:
+Diese Unraid-App startet die aktuelle SaaS-Testversion als Einzelcontainer:
+- Registrierung und Login
+- VIN-Verwaltung pro Nutzer
+- Testrechnung per SMTP oder Outbox-Log
+- Buchhaltungsziele als Platzhalter im Dashboard
 - FastAPI Web-UI und API
 - Hintergrund-Worker
 - SQLite im gemounteten Appdata-Verzeichnis
@@ -30,13 +34,20 @@ Dies ist die Demo-/MVP-Variante fuer Tests. Fuer produktive Nutzung mit echter T
   <CPUset/>
   <Requires>Docker image ghcr.io/feberdin/tesla-invoice-automatic-saas:latest muss veroeffentlicht sein.</Requires>
   <Config Name="Web UI Port" Target="8000" Default="8000" Mode="tcp" Description="Port fuer Dashboard und API" Type="Port" Display="always" Required="true" Mask="false">8000</Config>
-  <Config Name="Persistent Data Directory" Target="/data" Default="/mnt/user/appdata/tesla-invoice-automatic-saas" Mode="rw" Description="Speichert SQLite, Rechnungs-PDFs und die Demo-Mail-Outbox dauerhaft." Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata/tesla-invoice-automatic-saas</Config>
+  <Config Name="Persistent Data Directory" Target="/data" Default="/mnt/user/appdata/tesla-invoice-automatic-saas" Mode="rw" Description="Speichert SQLite, Rechnungs-PDFs und Mail-Outbox dauerhaft." Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata/tesla-invoice-automatic-saas</Config>
   <Config Name="App Base URL" Target="APP_BASE_URL" Default="http://[IP]:[PORT:8000]" Mode="" Description="Basis-URL fuer Links im Dashboard." Type="Variable" Display="always" Required="true" Mask="false">http://[IP]:[PORT:8000]</Config>
+  <Config Name="Session Secret Key" Target="SECRET_KEY" Default="change-me-to-a-long-random-secret" Mode="" Description="Wird fuer Session-Cookies benoetigt. Bitte fuer laengeren Betrieb unbedingt aendern." Type="Variable" Display="always" Required="true" Mask="true">change-me-to-a-long-random-secret</Config>
   <Config Name="Database URL" Target="DATABASE_URL" Default="sqlite:////data/local_demo.db" Mode="" Description="SQLite-Datei fuer den Demo-Betrieb. Normalerweise nicht aendern." Type="Variable" Display="advanced" Required="true" Mask="false">sqlite:////data/local_demo.db</Config>
   <Config Name="Data Dir Variable" Target="DATA_DIR" Default="/data" Mode="" Description="Interner Speicherpfad fuer PDFs und Logs." Type="Variable" Display="advanced" Required="true" Mask="false">/data</Config>
   <Config Name="Demo Mode" Target="DEMO_MODE" Default="true" Mode="" Description="Muss fuer diese erste Unraid-App auf true bleiben." Type="Variable" Display="advanced" Required="true" Mask="false">true</Config>
   <Config Name="Sync Interval Seconds" Target="SYNC_INTERVAL_SECONDS" Default="1800" Mode="" Description="Intervall des Hintergrundsyncs in Sekunden. 1800 = 30 Minuten." Type="Variable" Display="advanced" Required="true" Mask="false">1800</Config>
   <Config Name="Log Level" Target="LOG_LEVEL" Default="INFO" Mode="" Description="DEBUG, INFO, WARNING oder ERROR" Type="Variable" Display="advanced" Required="true" Mask="false">INFO</Config>
   <Config Name="Default Demo User Email" Target="DEMO_USER_EMAIL" Default="demo@feberdin.local" Mode="" Description="Vorausgefuellte Demo-E-Mail im Dashboard." Type="Variable" Display="advanced" Required="true" Mask="false">demo@feberdin.local</Config>
-  <Config Name="Default From E-Mail" Target="DEFAULT_FROM_EMAIL" Default="no-reply@tesla-invoice-demo.local" Mode="" Description="Absender fuer den Demo-Mail-Outbox-Eintrag." Type="Variable" Display="advanced" Required="true" Mask="false">no-reply@tesla-invoice-demo.local</Config>
+  <Config Name="Default From E-Mail" Target="DEFAULT_FROM_EMAIL" Default="no-reply@tesla-invoice-demo.local" Mode="" Description="Absender fuer Testmails und Demo-Sync-Benachrichtigungen." Type="Variable" Display="advanced" Required="true" Mask="false">no-reply@tesla-invoice-demo.local</Config>
+  <Config Name="SMTP Host" Target="SMTP_HOST" Default="" Mode="" Description="Optional. Wenn leer, werden E-Mails nur im Outbox-Log protokolliert." Type="Variable" Display="advanced" Required="false" Mask="false"></Config>
+  <Config Name="SMTP Port" Target="SMTP_PORT" Default="587" Mode="" Description="Typisch 587 mit TLS oder 465 mit SSL." Type="Variable" Display="advanced" Required="false" Mask="false">587</Config>
+  <Config Name="SMTP Username" Target="SMTP_USERNAME" Default="" Mode="" Description="Optionaler SMTP-Benutzername." Type="Variable" Display="advanced" Required="false" Mask="false"></Config>
+  <Config Name="SMTP Password" Target="SMTP_PASSWORD" Default="" Mode="" Description="Optionales SMTP-Passwort." Type="Variable" Display="advanced" Required="false" Mask="true"></Config>
+  <Config Name="SMTP Use TLS" Target="SMTP_USE_TLS" Default="true" Mode="" Description="Fuer Port 587 meist true." Type="Variable" Display="advanced" Required="false" Mask="false">true</Config>
+  <Config Name="SMTP Use SSL" Target="SMTP_USE_SSL" Default="false" Mode="" Description="Fuer Port 465 meist true. Nicht gleichzeitig mit TLS verwenden." Type="Variable" Display="advanced" Required="false" Mask="false">false</Config>
 </Container>

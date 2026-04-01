@@ -18,7 +18,7 @@ from sqlalchemy.orm import Session
 from app.core_logic import build_new_invoice_candidates
 from app.domain import SyncSummary
 from app.models import EmailSetting, Invoice, TeslaAccount, User, Vehicle
-from app.services.emailer import ConsoleEmailService
+from app.services.emailer import DeliveryEmailService
 from app.services.storage import LocalFileStorage
 from app.services.tesla import DemoTeslaClient
 
@@ -30,7 +30,7 @@ logger = logging.getLogger(__name__)
 class RuntimeServices:
     tesla_client: DemoTeslaClient
     storage: LocalFileStorage
-    emailer: ConsoleEmailService
+    emailer: DeliveryEmailService
 
 
 class InvoiceSyncService:
@@ -42,7 +42,7 @@ class InvoiceSyncService:
         accounts = list(user.tesla_accounts)
         if not accounts:
             raise ValueError(
-                f"Für {user.email} ist noch kein Tesla-Konto verbunden. Bitte zuerst die Demo-Verbindung anlegen."
+                f"Für {user.email} ist noch kein Demo-Tesla-Konto vorbereitet. Bitte zuerst mindestens eine VIN anlegen."
             )
 
         created_invoices: list[Invoice] = []
@@ -91,6 +91,7 @@ class InvoiceSyncService:
         self.db.commit()
 
         emailed_recipients: list[str] = []
+        delivery_mode = "none"
         email_settings = user.email_settings
         if created_invoices and email_settings and email_settings.recipients_csv:
             recipients = [item.strip() for item in email_settings.recipients_csv.split(",") if item.strip()]
@@ -100,20 +101,22 @@ class InvoiceSyncService:
                 f"Die PDFs liegen im Datenverzeichnis und koennen im Dashboard heruntergeladen werden."
             )
             attachments = [invoice.pdf_path for invoice in created_invoices if email_settings.attach_pdf]
-            self.runtime_services.emailer.send_summary(recipients, subject, body, attachments)
+            delivery_mode = self.runtime_services.emailer.send_summary(recipients, subject, body, attachments)
             emailed_recipients = recipients
 
         logger.info(
-            "Invoice sync finished for %s: created=%s skipped=%s emailed=%s",
+            "Invoice sync finished for %s: created=%s skipped=%s emailed=%s delivery_mode=%s",
             user.email,
             len(created_invoices),
             skipped_total,
             emailed_recipients,
+            delivery_mode,
         )
         return SyncSummary(
             created_count=len(created_invoices),
             skipped_count=skipped_total,
             emailed_recipients=emailed_recipients,
+            delivery_mode=delivery_mode,
         )
 
     def sync_all_users(self) -> list[tuple[str, SyncSummary]]:
@@ -129,9 +132,14 @@ class InvoiceSyncService:
         return summaries
 
 
-def ensure_email_settings(db: Session, user: User) -> EmailSetting:
+def ensure_email_settings(db: Session, user: User, *, default_recipient: str | None = None) -> EmailSetting:
     if user.email_settings is None:
-        user.email_settings = EmailSetting(user_id=user.id, recipients_csv="")
+        recipients_csv = default_recipient or ""
+        user.email_settings = EmailSetting(
+            user_id=user.id,
+            recipients_csv=recipients_csv,
+            accounting_targets_csv="",
+        )
         db.add(user.email_settings)
         db.commit()
         db.refresh(user)
@@ -160,4 +168,3 @@ def serialize_invoice(invoice: Invoice, app_base_url: str) -> dict[str, object]:
         "vehicle_name": invoice.vehicle.nickname if invoice.vehicle else "Tesla",
         "pdf_download_url": f"{app_base_url}/api/v1/invoices/{invoice.invoice_id}/download",
     }
-

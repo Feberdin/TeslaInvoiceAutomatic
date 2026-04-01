@@ -10,7 +10,7 @@ from __future__ import annotations
 from collections.abc import Generator
 from pathlib import Path
 
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
 from app.config import get_settings
@@ -63,3 +63,25 @@ def create_database() -> None:
 
     _ensure_sqlite_directory_exists(settings.database_url)
     Base.metadata.create_all(bind=engine)
+    _run_lightweight_migrations()
+
+
+def _run_lightweight_migrations() -> None:
+    inspector = inspect(engine)
+    table_names = set(inspector.get_table_names())
+
+    statements: list[str] = []
+    if "users" in table_names:
+        user_columns = {column["name"] for column in inspector.get_columns("users")}
+        if "password_hash" not in user_columns:
+            statements.append("ALTER TABLE users ADD COLUMN password_hash TEXT")
+
+    if "email_settings" in table_names:
+        email_columns = {column["name"] for column in inspector.get_columns("email_settings")}
+        if "accounting_targets_csv" not in email_columns:
+            statements.append("ALTER TABLE email_settings ADD COLUMN accounting_targets_csv TEXT DEFAULT ''")
+
+    if statements:
+        with engine.begin() as connection:
+            for statement in statements:
+                connection.execute(text(statement))

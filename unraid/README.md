@@ -2,13 +2,15 @@
 
 ## Ziel
 
-Diese Dateien bereiten den MVP fuer eine app-aehnliche Installation auf Unraid vor.
+Diese Dateien bereiten die aktuelle SaaS-Testversion fuer eine app-aehnliche Installation auf Unraid vor.
 Im kombinierten Repository liegt der eigentliche Anwendungscode unter `saas/`.
 
 ## Was ist enthalten?
 
 - `TeslaInvoiceAutomatic-SaaS.xml`: Docker-Template fuer Unraid
 - Single-Container-Laufmodus im Python-Image
+- Registrierung, Login und Session-Cookies
+- VIN-Verwaltung, Testmail und Demo-Rechnungsarchiv
 
 ## Wichtiger Hinweis
 
@@ -29,6 +31,39 @@ Ohne veroeffentlichtes Image kann Unraid zwar das Template sehen, aber den Conta
 
 3. Docker-Service in Unraid neu laden oder die Docker-Seite aktualisieren.
 4. Die App als User Template installieren.
+
+## Empfohlene Unraid-Werte
+
+- Port:
+  `8010 -> 8000`, falls `8000` bereits belegt ist
+- Persistenter Pfad:
+  `/mnt/cache/appdata/tesla-invoice-automatic-saas -> /data`
+- Pflichtvariablen:
+  `APP_BASE_URL`, `SECRET_KEY`, `DATABASE_URL`, `DATA_DIR`, `DEMO_MODE`, `DEFAULT_FROM_EMAIL`
+- Fuer echten Mailtest:
+  `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `SMTP_USE_TLS`, `SMTP_USE_SSL`
+
+## Typischer Testablauf auf Unraid
+
+1. App installieren und starten
+2. `/auth` oeffnen
+3. Konto registrieren
+4. eine VIN hinterlegen
+5. Empfaenger speichern
+6. `Testrechnung senden` pruefen
+7. `Demo-Sync ausloesen`
+8. Logs, PDFs und `email-outbox.log` kontrollieren
+
+## Debug-Hinweise
+
+- Container-Logs:
+  im Unraid-Docker-Tab
+- Rechnungen:
+  `/mnt/cache/appdata/tesla-invoice-automatic-saas/invoices`
+- Mail-Outbox:
+  `/mnt/cache/appdata/tesla-invoice-automatic-saas/email-outbox.log`
+- SQLite:
+  `/mnt/cache/appdata/tesla-invoice-automatic-saas/local_demo.db`
 
 ## Spaeter fuer Community Applications
 

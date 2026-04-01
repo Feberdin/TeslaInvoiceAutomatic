@@ -11,38 +11,40 @@ from datetime import datetime
 
 from pydantic import BaseModel, Field, field_validator
 
-from app.utils import validate_email_address, validate_recipient_list
+from app.auth import validate_password_strength
+from app.utils import validate_email_address, validate_recipient_list, validate_vin
 
 
-class UserCreateRequest(BaseModel):
+class RegisterRequest(BaseModel):
     email: str = Field(..., min_length=3, max_length=255)
+    password: str = Field(..., min_length=8, max_length=128)
 
     @field_validator("email")
     @classmethod
     def validate_email(cls, value: str) -> str:
         return validate_email_address(value)
 
-
-class DemoTeslaConnectRequest(BaseModel):
-    user_email: str
-    vehicle_count: int = Field(default=1, ge=1, le=3)
-
-    @field_validator("user_email")
+    @field_validator("password")
     @classmethod
-    def validate_user_email(cls, value: str) -> str:
+    def validate_password(cls, value: str) -> str:
+        return validate_password_strength(value)
+
+
+class LoginRequest(BaseModel):
+    email: str = Field(..., min_length=3, max_length=255)
+    password: str = Field(..., min_length=8, max_length=128)
+
+    @field_validator("email")
+    @classmethod
+    def validate_login_email(cls, value: str) -> str:
         return validate_email_address(value)
 
 
 class EmailSettingsRequest(BaseModel):
-    user_email: str
     recipients: list[str]
     subject_template: str = Field(default="Neue Tesla-Rechnungen für {email}", min_length=5, max_length=255)
     attach_pdf: bool = True
-
-    @field_validator("user_email")
-    @classmethod
-    def validate_user_email(cls, value: str) -> str:
-        return validate_email_address(value)
+    accounting_targets: list[str] = Field(default_factory=list)
 
     @field_validator("recipients")
     @classmethod
@@ -50,13 +52,36 @@ class EmailSettingsRequest(BaseModel):
         return validate_recipient_list(value)
 
 
-class ManualSyncRequest(BaseModel):
-    user_email: str
+class VehicleCreateRequest(BaseModel):
+    vin: str = Field(..., min_length=17, max_length=17)
+    nickname: str = Field(default="", max_length=100)
 
-    @field_validator("user_email")
+    @field_validator("vin")
     @classmethod
-    def validate_user_email(cls, value: str) -> str:
+    def validate_vehicle_vin(cls, value: str) -> str:
+        return validate_vin(value)
+
+
+class ManualSyncRequest(BaseModel):
+    include_fresh_demo_invoice: bool = True
+
+
+class TestEmailRequest(BaseModel):
+    recipient_override: str | None = None
+
+    @field_validator("recipient_override")
+    @classmethod
+    def validate_optional_recipient(cls, value: str | None) -> str | None:
+        if value is None or value == "":
+            return None
         return validate_email_address(value)
+
+
+class VehicleResponse(BaseModel):
+    id: int
+    vin: str
+    nickname: str
+    model: str
 
 
 class InvoiceResponse(BaseModel):
@@ -69,11 +94,20 @@ class InvoiceResponse(BaseModel):
     pdf_download_url: str
 
 
-class StatusResponse(BaseModel):
-    user_exists: bool
-    tesla_connected: bool
+class SessionResponse(BaseModel):
+    authenticated: bool
+    email: str | None = None
+
+
+class CurrentUserResponse(BaseModel):
+    email: str
     vehicle_count: int
     invoice_count: int
     email_recipients: list[str]
     last_synced_at: datetime | None
-
+    smtp_configured: bool
+    subject_template: str
+    attach_pdf: bool
+    accounting_targets: list[str]
+    available_accounting_targets: list[str]
+    vehicles: list[VehicleResponse]

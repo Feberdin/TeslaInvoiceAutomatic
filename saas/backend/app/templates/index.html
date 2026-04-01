@@ -10,33 +10,34 @@ Debug: If the product description becomes outdated, update this page and the REA
   <section class="hero">
     <article class="panel">
       <p class="eyebrow">Feberdin Demo Build</p>
-      <h1>Tesla Supercharger-Rechnungen automatisch holen, speichern und weiterleiten.</h1>
+      <h1>Registrieren, VINs hinterlegen und Tesla-Rechnungen als Testversand pruefen.</h1>
       <p class="lead">
-        Diese Testversion zeigt den kompletten Kernablauf fuer dein SaaS-Projekt:
-        Tesla-Konto verbinden, neue Rechnungen erkennen, PDF speichern, Weiterleitung protokollieren
-        und alle Belege im Dashboard bereitstellen.
+        Diese Testversion bildet bereits den kuenftigen SaaS-Flow ab:
+        Konto erstellen, mehrere VINs pflegen, Ziel-E-Mail definieren, Demo-Rechnungen erzeugen
+        und den Versand mit echtem SMTP oder Outbox-Log pruefen.
       </p>
       <div class="button-row">
-        <a class="button-link primary" href="/dashboard">Zum Dashboard</a>
+        <a class="button-link primary" href="{% if is_authenticated %}/dashboard{% else %}/auth{% endif %}">
+          {% if is_authenticated %}Zum Dashboard{% else %}Registrieren / Login{% endif %}
+        </a>
         <a class="button-link secondary" href="https://github.com/Feberdin/TeslaInvoiceAutomatic">Bestehendes Repo</a>
       </div>
       <ul class="feature-list">
-        <li class="feature-item"><strong>Demo-Tesla-Flow:</strong> keine echten Tesla-Credentials fuer den Ersttest noetig.</li>
-        <li class="feature-item"><strong>Docker-first:</strong> API, Worker und Datenbank laufen containerisiert und Unraid-freundlich.</li>
-        <li class="feature-item"><strong>Nachvollziehbar:</strong> PDFs, Sync-Status und Demo-Mailausgang sind direkt im Volume sichtbar.</li>
+        <li class="feature-item"><strong>Nutzerkonten:</strong> Registrierung und Login laufen bereits ueber die Web-App.</li>
+        <li class="feature-item"><strong>VIN-Verwaltung:</strong> mehrere Fahrzeuge koennen einem Konto zugeordnet werden.</li>
+        <li class="feature-item"><strong>E-Mail-Test:</strong> Rechnungen koennen an echte SMTP-Empfaenger oder in das Outbox-Log geschickt werden.</li>
       </ul>
     </article>
 
     <aside class="panel">
       <h2>Was du direkt testen kannst</h2>
       <ol class="steps-list">
-        <li class="step-item">Demo-Nutzer anlegen</li>
-        <li class="step-item">Demo-Tesla-Konto mit Fahrzeugen verbinden</li>
-        <li class="step-item">manuellen Sync ausloesen</li>
-        <li class="step-item">PDF-Rechnungen herunterladen</li>
-        <li class="step-item">Mail-Weiterleitung im Outbox-Log nachvollziehen</li>
+        <li class="step-item">Konto registrieren oder einloggen</li>
+        <li class="step-item">eine oder mehrere VINs hinterlegen</li>
+        <li class="step-item">Empfaenger und Buchhaltungsziele speichern</li>
+        <li class="step-item">Testrechnung per Mail senden</li>
+        <li class="step-item">Demo-Sync ausloesen und PDF-Rechnungen herunterladen</li>
       </ol>
     </aside>
   </section>
 {% endblock %}
-

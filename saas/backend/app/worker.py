@@ -15,7 +15,7 @@ from threading import Event
 from app.config import get_settings
 from app.database import SessionLocal, create_database
 from app.logging_config import configure_logging
-from app.services.emailer import ConsoleEmailService
+from app.services.emailer import DeliveryEmailService
 from app.services.storage import LocalFileStorage
 from app.services.sync import InvoiceSyncService, RuntimeServices
 from app.services.tesla import DemoTeslaClient
@@ -32,7 +32,7 @@ def run_worker_cycle() -> int:
         runtime_services = RuntimeServices(
             tesla_client=DemoTeslaClient(),
             storage=LocalFileStorage(settings.data_dir),
-            emailer=ConsoleEmailService(settings.data_dir, settings.default_from_email),
+            emailer=DeliveryEmailService(settings.data_dir, settings),
         )
         sync_service = InvoiceSyncService(session, runtime_services)
         summaries = sync_service.sync_all_users()

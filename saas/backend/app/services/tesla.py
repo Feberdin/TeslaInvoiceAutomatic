@@ -17,11 +17,11 @@ from sqlalchemy.orm import Session
 from app.domain import ChargingSession
 from app.models import TeslaAccount, User, Vehicle
 from app.pdf_utils import generate_demo_invoice_pdf
-from app.utils import normalize_email
+from app.utils import normalize_email, validate_vin
 
 
 class DemoTeslaClient:
-    def provision_demo_account(self, db: Session, user: User, vehicle_count: int) -> tuple[TeslaAccount, list[Vehicle]]:
+    def ensure_demo_account(self, db: Session, user: User) -> TeslaAccount:
         email_slug = hashlib.sha1(normalize_email(user.email).encode("utf-8")).hexdigest()[:10]
         tesla_account_id = f"demo-account-{email_slug}"
         account = db.scalar(select(TeslaAccount).where(TeslaAccount.user_id == user.id))
@@ -31,16 +31,47 @@ class DemoTeslaClient:
             db.add(account)
             db.flush()
 
+        return account
+
+    def upsert_vehicle(self, db: Session, user: User, vin: str, nickname: str = "") -> Vehicle:
+        normalized_vin = validate_vin(vin)
+        existing_vehicle = db.scalar(select(Vehicle).where(Vehicle.vin == normalized_vin))
+        if existing_vehicle and existing_vehicle.user_id != user.id:
+            raise ValueError(
+                f"Die VIN {normalized_vin} ist bereits einem anderen Nutzer zugeordnet. Bitte pruefe die Eingabe."
+            )
+
+        account = self.ensure_demo_account(db, user)
+        if existing_vehicle is None:
+            existing_vehicle = Vehicle(
+                user=user,
+                tesla_account=account,
+                tesla_vehicle_id=f"manual-{normalized_vin.lower()}",
+                vin=normalized_vin,
+                model="Tesla",
+                nickname=nickname.strip() or f"Tesla {normalized_vin[-4:]}",
+            )
+            db.add(existing_vehicle)
+        else:
+            existing_vehicle.tesla_account = account
+            existing_vehicle.nickname = nickname.strip() or existing_vehicle.nickname or f"Tesla {normalized_vin[-4:]}"
+
+        db.flush()
+        return existing_vehicle
+
+    def provision_demo_account(self, db: Session, user: User, vehicle_count: int) -> tuple[TeslaAccount, list[Vehicle]]:
+        account = self.ensure_demo_account(db, user)
+
         existing_vehicles = list(account.vehicles)
         existing_vehicle_ids = {vehicle.tesla_vehicle_id for vehicle in existing_vehicles}
 
         # Vehicles are only added, never deleted automatically, so invoices remain traceable.
         for index in range(1, vehicle_count + 1):
-            tesla_vehicle_id = f"{tesla_account_id}-vehicle-{index}"
+            tesla_vehicle_id = f"{account.tesla_account_id}-vehicle-{index}"
             if tesla_vehicle_id in existing_vehicle_ids:
                 continue
 
-            vin_suffix = hashlib.sha1(f"{tesla_vehicle_id}-vin".encode("utf-8")).hexdigest()[:11].upper()
+            vin_suffix = hashlib.sha1(f"{tesla_vehicle_id}-vin".encode("utf-8")).hexdigest()[:10].upper()
             vehicle = Vehicle(
                 user=user,
                 tesla_account=account,

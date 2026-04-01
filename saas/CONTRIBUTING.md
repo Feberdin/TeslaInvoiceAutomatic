@@ -20,6 +20,14 @@ cp .env.example .env
 docker compose up --build
 ```
 
+### Wichtige Testfaelle
+
+- Registrierung und Login funktionieren mit Session-Cookie
+- eine neue VIN kann gespeichert und wieder entfernt werden
+- Empfaenger und Buchhaltungsplatzhalter koennen gespeichert werden
+- `Testrechnung senden` schreibt mindestens ins Outbox-Log oder verschickt per SMTP
+- `Demo-Sync ausloesen` erzeugt Rechnungen und PDF-Dateien
+
 ### Tests ausführen
 
 ```bash
@@ -36,6 +44,7 @@ PYTHONPATH=backend python3 -m unittest discover -s backend/tests
 
 - README bleibt aktuell
 - Quickstart funktioniert noch
+- Unraid-Template enthaelt neue Pflichtvariablen
 - Fehlermeldungen sind verständlich
 - Logs helfen bei der Fehlersuche
 - neue Kernlogik ist getestet

@@ -11,6 +11,7 @@ from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
+from starlette.middleware.sessions import SessionMiddleware
 
 from app.config import get_settings
 from app.database import create_database
@@ -23,6 +24,13 @@ settings = get_settings()
 configure_logging(settings.log_level)
 
 app = FastAPI(title=settings.app_name)
+app.add_middleware(
+    SessionMiddleware,
+    secret_key=settings.secret_key,
+    session_cookie="tesla_invoice_session",
+    same_site="lax",
+    https_only=False,
+)
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 app.include_router(api_router)
 app.include_router(pages_router)
@@ -32,4 +40,3 @@ app.include_router(pages_router)
 def startup() -> None:
     Path(settings.data_dir).mkdir(parents=True, exist_ok=True)
     create_database()
-

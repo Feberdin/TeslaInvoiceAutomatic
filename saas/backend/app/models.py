@@ -24,6 +24,7 @@ class User(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     email: Mapped[str] = mapped_column(String(255), unique=True, index=True)
+    password_hash: Mapped[str | None] = mapped_column(Text(), nullable=True)
     subscription_plan: Mapped[str] = mapped_column(String(50), default="basic")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
 
@@ -92,9 +93,9 @@ class EmailSetting(Base):
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), unique=True, index=True)
     recipients_csv: Mapped[str] = mapped_column(Text(), default="")
     subject_template: Mapped[str] = mapped_column(String(255), default="Neue Tesla-Rechnungen für {email}")
+    accounting_targets_csv: Mapped[str] = mapped_column(Text(), default="")
     attach_pdf: Mapped[bool] = mapped_column(Boolean(), default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow, onupdate=_utcnow)
 
     user: Mapped["User"] = relationship(back_populates="email_settings")
-

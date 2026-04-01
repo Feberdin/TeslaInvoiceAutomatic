@@ -19,14 +19,17 @@ Debug: If a page loses its styling, inspect the static CSS and template inherita
         <div class="brand">{{ app_name }}</div>
         <nav>
           <a class="nav-link" href="/">Start</a>
-          <a class="nav-link" href="/dashboard">Dashboard</a>
+          {% if request.session.get("user_id") %}
+            <a class="nav-link" href="/dashboard">Dashboard</a>
+          {% else %}
+            <a class="nav-link" href="/auth">Login</a>
+          {% endif %}
         </nav>
       </header>
       {% block content %}{% endblock %}
       <footer class="footer">
-        Demo-MVP fuer den Testbetrieb auf Unraid/Docker. Produktive Tesla OAuth-, Token- und Billing-Logik folgen spaeter.
+        SaaS-Testversion fuer Unraid/Docker mit Registrierung, VIN-Verwaltung, Demo-Rechnungen und SMTP-Testversand.
       </footer>
     </div>
   </body>
 </html>
-

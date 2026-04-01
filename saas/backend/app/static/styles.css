@@ -173,6 +173,10 @@ button:hover,
   gap: 18px;
 }
 
+.compact-stack {
+  gap: 12px;
+}
+
 label {
   display: block;
   margin-bottom: 8px;
@@ -193,6 +197,10 @@ textarea {
 textarea {
   min-height: 96px;
   resize: vertical;
+}
+
+input[type="checkbox"] {
+  width: auto;
 }
 
 .helper {
@@ -237,6 +245,54 @@ textarea {
   color: var(--accent-dark);
 }
 
+.auth-grid {
+  display: grid;
+  gap: 20px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.inline-section {
+  margin-top: 8px;
+}
+
+.pill-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.pill-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border-radius: 999px;
+  padding: 10px 14px;
+  background: var(--surface);
+  border: 1px solid rgba(24, 34, 47, 0.08);
+}
+
+.list-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  background: var(--surface);
+  border-radius: 16px;
+  border: 1px solid rgba(24, 34, 47, 0.08);
+}
+
+.small-button {
+  padding: 8px 14px;
+}
+
 table {
   width: 100%;
   border-collapse: collapse;
@@ -268,5 +324,8 @@ th {
   .dashboard-grid {
     grid-template-columns: 1fr;
   }
-}
 
+  .auth-grid {
+    grid-template-columns: 1fr;
+  }
+}

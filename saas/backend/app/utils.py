@@ -12,6 +12,7 @@ from email.utils import parseaddr
 
 
 EMAIL_PATTERN = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+VIN_PATTERN = re.compile(r"^[A-HJ-NPR-Z0-9]{17}$")
 
 
 def normalize_email(value: str) -> str:
@@ -37,3 +38,18 @@ def validate_recipient_list(recipients: list[str]) -> list[str]:
 
     return [validate_email_address(recipient) for recipient in recipients]
 
+
+def normalize_vin(value: str) -> str:
+    normalized_value = value.strip().upper()
+    if not normalized_value:
+        raise ValueError("Die VIN darf nicht leer sein.")
+    return normalized_value
+
+
+def validate_vin(value: str) -> str:
+    normalized_value = normalize_vin(value)
+    if not VIN_PATTERN.match(normalized_value):
+        raise ValueError(
+            f"Ungültige VIN: {value!r}. Erwartet werden 17 Zeichen aus A-Z und 0-9 ohne I, O oder Q."
+        )
+    return normalized_value

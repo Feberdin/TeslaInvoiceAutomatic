@@ -1,0 +1,49 @@
+<!--
+Purpose: Provide a low-friction entry point for registration and login.
+Input/Output: Captures e-mail and password and lets auth.js establish a session cookie.
+Invariants: Registration and login stay side by side so first-time users know exactly where to start.
+Debug: If login appears to succeed but the dashboard still redirects here, inspect the session cookie and auth API response.
+-->
+
+{% extends "base.html" %}
+{% block content %}
+  <section class="hero">
+    <article class="panel">
+      <p class="eyebrow">SaaS Zugang</p>
+      <h1>Eigener Testzugang fuer VINs, Rechnungsmails und spaetere Buchhaltungsexporte.</h1>
+      <p class="lead">
+        Registriere dein Konto, hinterlege deine VINs und teste den Versand der Rechnungen an deine Ziel-E-Mail.
+        Tesla OAuth selbst folgt spaeter, der gesamte Nutzungsfluss ist hier aber schon vorbereitet.
+      </p>
+      <ul class="feature-list">
+        <li class="feature-item"><strong>Heute testbar:</strong> Login, VIN-Verwaltung, SMTP-Testmail, Demo-Rechnungen.</li>
+        <li class="feature-item"><strong>Buchhaltung:</strong> DATEV, Lexoffice, sevDesk und Paperless sind bereits als Platzhalter sichtbar.</li>
+        <li class="feature-item"><strong>Hinweis:</strong> `DEMO_MODE` sollte fuer diese Build-Stufe weiterhin aktiv bleiben.</li>
+      </ul>
+    </article>
+
+    <aside class="panel">
+      <div id="notice" class="notice info" hidden></div>
+      <div class="auth-grid">
+        <form id="register-form" class="stack">
+          <h2>Registrieren</h2>
+          <label for="register-email">E-Mail</label>
+          <input id="register-email" type="email" placeholder="dein.name@example.com" required />
+          <label for="register-password">Passwort</label>
+          <input id="register-password" type="password" placeholder="mindestens 8 Zeichen" required />
+          <button class="primary" type="submit">Konto erstellen</button>
+        </form>
+
+        <form id="login-form" class="stack">
+          <h2>Login</h2>
+          <label for="login-email">E-Mail</label>
+          <input id="login-email" type="email" placeholder="dein.name@example.com" required />
+          <label for="login-password">Passwort</label>
+          <input id="login-password" type="password" placeholder="dein Passwort" required />
+          <button class="secondary" type="submit">Einloggen</button>
+        </form>
+      </div>
+    </aside>
+  </section>
+  <script src="/static/auth.js"></script>
+{% endblock %}
