@@ -7,8 +7,8 @@ Debug: If login appears to succeed but the dashboard still redirects here, inspe
 
 {% extends "base.html" %}
 {% block content %}
-  <section class="hero">
-    <article class="panel">
+  <section class="hero auth-hero">
+    <article class="panel auth-copy-panel">
       <p class="eyebrow">SaaS Zugang</p>
       <h1>Eigener Testzugang fuer VINs, Rechnungsmails und spaetere Buchhaltungsexporte.</h1>
       <p class="lead">
@@ -22,10 +22,10 @@ Debug: If login appears to succeed but the dashboard still redirects here, inspe
       </ul>
     </article>
 
-    <aside class="panel">
+    <aside class="panel auth-panel">
       <div id="notice" class="notice info" hidden></div>
       <div class="auth-grid">
-        <form id="register-form" class="stack">
+        <form id="register-form" class="stack auth-form-card">
           <h2>Registrieren</h2>
           <label for="register-email">E-Mail</label>
           <input id="register-email" type="email" placeholder="dein.name@example.com" required />
@@ -34,7 +34,7 @@ Debug: If login appears to succeed but the dashboard still redirects here, inspe
           <button class="primary" type="submit">Konto erstellen</button>
         </form>
 
-        <form id="login-form" class="stack">
+        <form id="login-form" class="stack auth-form-card">
           <h2>Login</h2>
           <label for="login-email">E-Mail</label>
           <input id="login-email" type="email" placeholder="dein.name@example.com" required />

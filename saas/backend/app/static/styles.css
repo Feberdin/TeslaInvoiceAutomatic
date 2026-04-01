@@ -73,6 +73,11 @@ a {
   align-items: stretch;
 }
 
+.auth-hero {
+  grid-template-columns: minmax(0, 1.45fr) minmax(340px, 420px);
+  align-items: start;
+}
+
 .panel {
   background: rgba(255, 255, 255, 0.78);
   backdrop-filter: blur(10px);
@@ -100,6 +105,19 @@ h3 {
   font-size: clamp(2.2rem, 4vw, 4.2rem);
   line-height: 1.05;
   margin-bottom: 12px;
+}
+
+.auth-copy-panel h1 {
+  font-size: clamp(2.45rem, 3.8vw, 4rem);
+  line-height: 1.08;
+  max-width: 12ch;
+  margin-bottom: 18px;
+}
+
+.auth-copy-panel .lead {
+  font-size: 1rem;
+  line-height: 1.65;
+  max-width: 56ch;
 }
 
 .lead {
@@ -247,8 +265,39 @@ input[type="checkbox"] {
 
 .auth-grid {
   display: grid;
-  gap: 20px;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  grid-template-columns: 1fr;
+}
+
+.auth-panel {
+  width: 100%;
+  max-width: 420px;
+  justify-self: end;
+}
+
+.auth-panel h2 {
+  font-size: 1.35rem;
+  line-height: 1.2;
+  margin-bottom: 4px;
+}
+
+.auth-panel label {
+  font-size: 0.95rem;
+}
+
+.auth-panel input {
+  padding: 11px 14px;
+}
+
+.auth-form-card {
+  padding: 18px;
+  background: var(--surface);
+  border: 1px solid rgba(24, 34, 47, 0.08);
+  border-radius: 20px;
+}
+
+.auth-form-card button {
+  width: 100%;
 }
 
 .checkbox-row {
@@ -325,7 +374,12 @@ th {
     grid-template-columns: 1fr;
   }
 
-  .auth-grid {
-    grid-template-columns: 1fr;
+  .auth-panel {
+    max-width: none;
+    justify-self: stretch;
+  }
+
+  .auth-copy-panel h1 {
+    max-width: none;
   }
 }

@@ -26,7 +26,7 @@ Hinweis:
 Dies ist die Demo-/MVP-Variante fuer Tests. Fuer produktive Nutzung mit echter Tesla OAuth, PostgreSQL, Redis und getrennten Services ist spaeter eine Compose-/Multi-Container-Variante sinnvoll.
   </Overview>
   <Category>Productivity:Tools:</Category>
-  <WebUI>http://[IP]:[PORT:8000]/dashboard</WebUI>
+  <WebUI>http://[IP]:[PORT:8000]/auth</WebUI>
   <TemplateURL>https://raw.githubusercontent.com/Feberdin/TeslaInvoiceAutomatic/main/unraid/TeslaInvoiceAutomatic-SaaS.xml</TemplateURL>
   <Icon>https://raw.githubusercontent.com/Feberdin/TeslaInvoiceAutomatic/main/unraid/icon.svg</Icon>
   <ExtraParams/>
@@ -43,11 +43,11 @@ Dies ist die Demo-/MVP-Variante fuer Tests. Fuer produktive Nutzung mit echter T
   <Config Name="Sync Interval Seconds" Target="SYNC_INTERVAL_SECONDS" Default="1800" Mode="" Description="Intervall des Hintergrundsyncs in Sekunden. 1800 = 30 Minuten." Type="Variable" Display="advanced" Required="true" Mask="false">1800</Config>
   <Config Name="Log Level" Target="LOG_LEVEL" Default="INFO" Mode="" Description="DEBUG, INFO, WARNING oder ERROR" Type="Variable" Display="advanced" Required="true" Mask="false">INFO</Config>
   <Config Name="Default Demo User Email" Target="DEMO_USER_EMAIL" Default="demo@feberdin.local" Mode="" Description="Vorausgefuellte Demo-E-Mail im Dashboard." Type="Variable" Display="advanced" Required="true" Mask="false">demo@feberdin.local</Config>
-  <Config Name="Default From E-Mail" Target="DEFAULT_FROM_EMAIL" Default="no-reply@tesla-invoice-demo.local" Mode="" Description="Absender fuer Testmails und Demo-Sync-Benachrichtigungen." Type="Variable" Display="advanced" Required="true" Mask="false">no-reply@tesla-invoice-demo.local</Config>
-  <Config Name="SMTP Host" Target="SMTP_HOST" Default="" Mode="" Description="Optional. Wenn leer, werden E-Mails nur im Outbox-Log protokolliert." Type="Variable" Display="advanced" Required="false" Mask="false"></Config>
-  <Config Name="SMTP Port" Target="SMTP_PORT" Default="587" Mode="" Description="Typisch 587 mit TLS oder 465 mit SSL." Type="Variable" Display="advanced" Required="false" Mask="false">587</Config>
-  <Config Name="SMTP Username" Target="SMTP_USERNAME" Default="" Mode="" Description="Optionaler SMTP-Benutzername." Type="Variable" Display="advanced" Required="false" Mask="false"></Config>
-  <Config Name="SMTP Password" Target="SMTP_PASSWORD" Default="" Mode="" Description="Optionales SMTP-Passwort." Type="Variable" Display="advanced" Required="false" Mask="true"></Config>
-  <Config Name="SMTP Use TLS" Target="SMTP_USE_TLS" Default="true" Mode="" Description="Fuer Port 587 meist true." Type="Variable" Display="advanced" Required="false" Mask="false">true</Config>
-  <Config Name="SMTP Use SSL" Target="SMTP_USE_SSL" Default="false" Mode="" Description="Fuer Port 465 meist true. Nicht gleichzeitig mit TLS verwenden." Type="Variable" Display="advanced" Required="false" Mask="false">false</Config>
+  <Config Name="Default From E-Mail" Target="DEFAULT_FROM_EMAIL" Default="no-reply@deine-domain.tld" Mode="" Description="Absender fuer Testmails und Demo-Sync-Benachrichtigungen." Type="Variable" Display="always" Required="true" Mask="false">no-reply@deine-domain.tld</Config>
+  <Config Name="SMTP Host" Target="SMTP_HOST" Default="" Mode="" Description="Optional. Wenn leer, werden E-Mails nur im Outbox-Log protokolliert." Type="Variable" Display="always" Required="false" Mask="false"></Config>
+  <Config Name="SMTP Port" Target="SMTP_PORT" Default="587" Mode="" Description="Typisch 587 mit TLS oder 465 mit SSL." Type="Variable" Display="always" Required="false" Mask="false">587</Config>
+  <Config Name="SMTP Username" Target="SMTP_USERNAME" Default="" Mode="" Description="Optionaler SMTP-Benutzername." Type="Variable" Display="always" Required="false" Mask="false"></Config>
+  <Config Name="SMTP Password" Target="SMTP_PASSWORD" Default="" Mode="" Description="Optionales SMTP-Passwort." Type="Variable" Display="always" Required="false" Mask="true"></Config>
+  <Config Name="SMTP Use TLS" Target="SMTP_USE_TLS" Default="true" Mode="" Description="Fuer Port 587 meist true." Type="Variable" Display="always" Required="false" Mask="false">true</Config>
+  <Config Name="SMTP Use SSL" Target="SMTP_USE_SSL" Default="false" Mode="" Description="Fuer Port 465 meist true. Nicht gleichzeitig mit TLS verwenden." Type="Variable" Display="always" Required="false" Mask="false">false</Config>
 </Container>
