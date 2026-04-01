@@ -18,6 +18,7 @@ from app.errors import TeslaAuthenticationError
 from app.domain import ChargingSession
 from app.models import TeslaAccount, User, Vehicle
 from app.pdf_utils import generate_demo_invoice_pdf
+from app.tesla_modes import select_live_account
 from app.utils import normalize_email, validate_vin
 
 
@@ -26,17 +27,14 @@ def get_tesla_account_by_mode(db: Session, user: User, mode: str) -> TeslaAccoun
 
 
 def get_preferred_user_account(db: Session, user: User, *, allow_demo: bool) -> TeslaAccount:
-    fleet_account = get_tesla_account_by_mode(db, user, "fleet_oauth")
-    if fleet_account is not None:
-        return fleet_account
-    owner_account = get_tesla_account_by_mode(db, user, "owner_api")
-    if owner_account is not None:
-        return owner_account
+    live_account = select_live_account(list(user.tesla_accounts), getattr(user, "preferred_live_sync_mode", "auto"))
+    if live_account is not None:
+        return live_account
     if allow_demo:
         return DemoTeslaClient().ensure_demo_account(db, user)
     raise TeslaAuthenticationError(
         "Fuer dieses Konto ist noch keine echte Tesla-Verbindung gespeichert. "
-        "Bitte zuerst im Dashboard Tesla-Zugangsdaten importieren."
+        "Bitte zuerst im Dashboard den offiziellen Fleet-Login oder den inoffiziellen Token-Import hinterlegen."
     )
 
 

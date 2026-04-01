@@ -31,6 +31,8 @@ class Settings:
     smtp_password: str
     smtp_use_tls: bool
     smtp_use_ssl: bool
+    enable_tesla_fleet_oauth: bool
+    enable_tesla_owner_import: bool
     tesla_client_id: str
     tesla_client_secret: str
     tesla_fleet_api_base_url: str
@@ -67,6 +69,8 @@ def get_settings() -> Settings:
         smtp_password=os.getenv("SMTP_PASSWORD", ""),
         smtp_use_tls=_read_bool("SMTP_USE_TLS", True),
         smtp_use_ssl=_read_bool("SMTP_USE_SSL", False),
+        enable_tesla_fleet_oauth=_read_bool("ENABLE_TESLA_FLEET_OAUTH", True),
+        enable_tesla_owner_import=_read_bool("ENABLE_TESLA_OWNER_IMPORT", True),
         tesla_client_id=os.getenv("TESLA_CLIENT_ID", "").strip(),
         tesla_client_secret=os.getenv("TESLA_CLIENT_SECRET", "").strip(),
         tesla_fleet_api_base_url=os.getenv(

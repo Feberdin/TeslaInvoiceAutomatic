@@ -75,6 +75,8 @@ def _run_lightweight_migrations() -> None:
         user_columns = {column["name"] for column in inspector.get_columns("users")}
         if "password_hash" not in user_columns:
             statements.append("ALTER TABLE users ADD COLUMN password_hash TEXT")
+        if "preferred_live_sync_mode" not in user_columns:
+            statements.append("ALTER TABLE users ADD COLUMN preferred_live_sync_mode VARCHAR(50) DEFAULT 'auto'")
 
     if "email_settings" in table_names:
         email_columns = {column["name"] for column in inspector.get_columns("email_settings")}

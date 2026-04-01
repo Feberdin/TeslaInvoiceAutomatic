@@ -37,6 +37,8 @@ class TeslaFleetTests(unittest.TestCase):
             smtp_password="",
             smtp_use_tls=True,
             smtp_use_ssl=False,
+            enable_tesla_fleet_oauth=True,
+            enable_tesla_owner_import=True,
             tesla_client_id="client-id",
             tesla_client_secret="client-secret",
             tesla_fleet_api_base_url="https://fleet-api.prd.eu.vn.cloud.tesla.com",
@@ -49,6 +51,36 @@ class TeslaFleetTests(unittest.TestCase):
         self.assertIn("client_id=client-id", authorization_request.url)
         self.assertIn("redirect_uri=http%3A%2F%2Flocalhost%3A8000%2Fapi%2Fv1%2Ftesla%2Foauth%2Fcallback", authorization_request.url)
         self.assertTrue(authorization_request.state)
+
+    def test_tesla_oauth_is_false_when_feature_toggle_is_disabled(self) -> None:
+        settings = Settings(
+            app_name="Test",
+            app_env="test",
+            app_base_url="http://localhost:8000",
+            log_level="INFO",
+            secret_key="secret",
+            demo_mode=True,
+            database_url="sqlite:///./data/test.db",
+            data_dir=Path("/tmp"),
+            sync_interval_seconds=1800,
+            default_from_email="no-reply@example.com",
+            demo_user_email="demo@example.com",
+            smtp_host="",
+            smtp_port=587,
+            smtp_username="",
+            smtp_password="",
+            smtp_use_tls=True,
+            smtp_use_ssl=False,
+            enable_tesla_fleet_oauth=False,
+            enable_tesla_owner_import=True,
+            tesla_client_id="client-id",
+            tesla_client_secret="client-secret",
+            tesla_fleet_api_base_url="https://fleet-api.prd.eu.vn.cloud.tesla.com",
+            tesla_oauth_scope="openid offline_access user_data vehicle_device_data vehicle_charging_cmds",
+            tesla_oauth_redirect_path="/api/v1/tesla/oauth/callback",
+        )
+
+        self.assertFalse(tesla_oauth_available(settings))
 
     def test_parse_fleet_charging_history_with_nested_invoices(self) -> None:
         payload = {

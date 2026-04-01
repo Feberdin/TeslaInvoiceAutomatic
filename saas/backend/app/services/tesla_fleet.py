@@ -79,14 +79,19 @@ class _HttpResponse:
 
 
 def tesla_oauth_available(settings: Settings) -> bool:
-    return bool(settings.tesla_client_id and settings.tesla_client_secret and settings.app_base_url)
+    return bool(
+        settings.enable_tesla_fleet_oauth
+        and settings.tesla_client_id
+        and settings.tesla_client_secret
+        and settings.app_base_url
+    )
 
 
 def build_tesla_authorization_request(settings: Settings) -> OAuthAuthorizationRequest:
     if not tesla_oauth_available(settings):
         raise TeslaAuthenticationError(
             "Tesla OAuth ist noch nicht fuer diese Installation konfiguriert. "
-            "Bitte `TESLA_CLIENT_ID` und `TESLA_CLIENT_SECRET` in Unraid setzen."
+            "Bitte `ENABLE_TESLA_FLEET_OAUTH=true`, `TESLA_CLIENT_ID` und `TESLA_CLIENT_SECRET` setzen."
         )
 
     state = secrets.token_urlsafe(24)

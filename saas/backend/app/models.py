@@ -26,6 +26,7 @@ class User(Base):
     email: Mapped[str] = mapped_column(String(255), unique=True, index=True)
     password_hash: Mapped[str | None] = mapped_column(Text(), nullable=True)
     subscription_plan: Mapped[str] = mapped_column(String(50), default="basic")
+    preferred_live_sync_mode: Mapped[str] = mapped_column(String(50), default="auto")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
 
     tesla_accounts: Mapped[list["TeslaAccount"]] = relationship(back_populates="user", cascade="all, delete-orphan")

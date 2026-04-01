@@ -1,16 +1,17 @@
 # TeslaInvoiceAutomatic SaaS MVP
 
-Diese Version ist ein Docker-first Teststand fuer Unraid und lokale Docker-Umgebungen. Der aktuelle Fokus liegt auf einem testbaren SaaS-Nutzerfluss mit echtem Mailversand und einem offiziellen Tesla-Login fuer Endkunden:
+Diese Version ist ein Docker-first Teststand fuer Unraid und lokale Docker-Umgebungen. Der aktuelle Fokus liegt auf einem testbaren SaaS-Nutzerfluss mit echtem Mailversand und zwei echten Tesla-Verbindungswegen:
 
 - Konto registrieren und einloggen
 - eine oder mehrere VINs hinterlegen
-- Tesla per offiziellem OAuth verbinden
+- Tesla per offiziellem Fleet OAuth verbinden
+- oder Tesla per inoffiziellem Token-Import anbinden
 - Empfaenger fuer Rechnungen speichern
 - Testrechnung per SMTP oder Outbox pruefen
 - Demo- oder Live-Rechnungen erzeugen, archivieren und herunterladen
 - Buchhaltungssysteme vorerst als sichtbare Platzhalter auswaehlen
 
-Wichtig: Endkunden koennen sich in dieser Build-Stufe per offiziellem Tesla OAuth verbinden. Als technischer Fallback bleiben Cache-/Token-Importe im Dashboard sichtbar. `DEMO_MODE=true` bleibt als sicherer Fallback sinnvoll, bis Tesla OAuth fuer deine Installation vollstaendig eingerichtet ist.
+Wichtig: Diese Build-Stufe unterstuetzt bewusst beide Varianten parallel. Der Fleet-Weg ist der offizielle SaaS-Pfad, der inoffizielle Token-Import ist der praktische Self-Hosted-Weg ohne Fleet-Billing. `DEMO_MODE=true` bleibt als sicherer Fallback sinnvoll, bis mindestens eine echte Tesla-Verbindung vorhanden ist.
 
 ## Kurzplan
 
@@ -18,16 +19,17 @@ Wichtig: Endkunden koennen sich in dieser Build-Stufe per offiziellem Tesla OAut
 2. Session-Cookies halten den angemeldeten Nutzer im Browser, damit VINs und Rechnungen nicht ueber E-Mail-Felder verwechselt werden.
 3. Pro Nutzer koennen mehrere VINs gespeichert werden.
 4. Ein offizieller Tesla-Fleet-Client startet den OAuth-Login, tauscht den Callback-Code gegen Tokens und ruft pro VIN echte Charging-Invoices ab.
-5. Ein manueller Token-/Cache-Import bleibt als Expertenweg fuer Migration und Fehlersuche erhalten.
-6. Wenn kein echter Tesla-Zugang verbunden ist, erzeugt der Demo-Tesla-Adapter pro VIN nachvollziehbare Test-Rechnungen.
-7. Rechnungen landen im Datenverzeichnis und im Dashboard-Archiv.
-8. E-Mails gehen entweder ueber echten SMTP oder nachvollziehbar in `email-outbox.log`.
-9. Buchhaltungssysteme sind bereits als UI-Platzhalter vorhanden, aber noch ohne echten Export.
+5. Ein inoffizieller Owner-Token-/Cache-Import bleibt als Self-Hosted-Weg ohne Fleet-Billing verfuegbar.
+6. Nutzer koennen festlegen, welcher Live-Weg bevorzugt werden soll, falls beide Varianten gespeichert sind.
+7. Wenn kein echter Tesla-Zugang verbunden ist, erzeugt der Demo-Tesla-Adapter pro VIN nachvollziehbare Test-Rechnungen.
+8. Rechnungen landen im Datenverzeichnis und im Dashboard-Archiv.
+9. E-Mails gehen entweder ueber echten SMTP oder nachvollziehbar in `email-outbox.log`.
+10. Buchhaltungssysteme sind bereits als UI-Platzhalter vorhanden, aber noch ohne echten Export.
 
 ## Annahmen
 
 - Zielsystem: Unraid mit Docker App oder lokales Docker Compose
-- Aktueller Tesla-Modus: `DEMO_MODE=true` als Fallback, echter Tesla-Zugang wird im Dashboard per OAuth verbunden
+- Aktueller Tesla-Modus: `DEMO_MODE=true` als Fallback, echter Tesla-Zugang wird im Dashboard per Fleet OAuth oder inoffiziellem Token-Import verbunden
 - Mailversand: SMTP ist optional, Outbox-Log steht immer zur Verfuegung
 - Persistenz: Unraid-App nutzt SQLite im `/data`-Volume, Docker Compose nutzt PostgreSQL
 - Reverse Proxy / HTTPS: spaeter ueber Unraid-Setup wie Nginx Proxy Manager oder Traefik
@@ -37,8 +39,9 @@ Wichtig: Endkunden koennen sich in dieser Build-Stufe per offiziellem Tesla OAut
 - Registrierung und Login per E-Mail + Passwort
 - Session-basierter Dashboard-Zugang
 - mehrere VINs pro Nutzer
-- offizieller Tesla-OAuth-Login direkt aus dem Dashboard
-- technischer Fallback ueber TeslaPy-/tesla_ha-`cache.json` oder manuelle Tokens
+- offizieller Tesla-Fleet-Login direkt aus dem Dashboard
+- inoffizieller Tesla-Owner-Import ueber Refresh-Token oder TeslaPy-/tesla_ha-`cache.json`
+- bevorzugter Live-Weg pro Nutzer, falls beide Varianten parallel hinterlegt sind
 - gespeicherte Versandempfaenger pro Nutzer
 - Testrechnung an gespeicherte oder abweichende Test-Adresse
 - Live-Sync fuer echte Tesla-Rechnungen oder Demo-Sync als Fallback
@@ -73,6 +76,7 @@ Wichtig: Endkunden koennen sich in dieser Build-Stufe per offiziellem Tesla OAut
     │   ├── models.py
     │   ├── pdf_utils.py
     │   ├── schemas.py
+    │   ├── tesla_modes.py
     │   ├── token_store.py
     │   ├── unraid_main.py
     │   ├── utils.py
@@ -101,6 +105,7 @@ Wichtig: Endkunden koennen sich in dieser Build-Stufe per offiziellem Tesla OAut
         ├── test_core_logic.py
         ├── test_pdf_and_validation.py
         ├── test_tesla_fleet.py
+        ├── test_tesla_modes.py
         └── test_tesla_owner.py
 ```
 
@@ -138,7 +143,7 @@ Cockpit fuer Tesla-Zugang, VINs, Mailversand, Buchhaltungsplatzhalter und Rechnu
 cp .env.example .env
 ```
 
-Optional fuer echten Mailtest in `.env` setzen:
+Optional fuer echten Mailtest und beide Tesla-Wege in `.env` setzen:
 
 ```env
 SMTP_HOST=smtp.example.com
@@ -149,6 +154,8 @@ SMTP_USE_TLS=true
 SMTP_USE_SSL=false
 DEFAULT_FROM_EMAIL=no-reply@example.com
 SECRET_KEY=bitte-einen-langen-zufaelligen-wert-setzen
+ENABLE_TESLA_FLEET_OAUTH=true
+ENABLE_TESLA_OWNER_IMPORT=true
 TESLA_CLIENT_ID=deine-tesla-client-id
 TESLA_CLIENT_SECRET=dein-tesla-client-secret
 TESLA_FLEET_API_BASE_URL=https://fleet-api.prd.eu.vn.cloud.tesla.com
@@ -170,30 +177,32 @@ http://localhost:8000
 
 1. `/auth` oeffnen oder auf der Startseite `Registrieren / Login` klicken
 2. neues Konto registrieren
-3. im Dashboard `Mit Tesla verbinden` klicken
+3. im Dashboard zwischen `Offiziell mit Tesla verbinden` und `Inoffiziellen Zugang speichern` waehlen
 4. eine oder mehrere VINs hinterlegen
 5. Versandempfaenger speichern
 6. optional Test-E-Mail-Adresse eintragen
 7. `Testrechnung senden` klicken
-8. `Tesla-Sync ausloesen` oder `Demo-Sync ausloesen` klicken
-9. PDFs im Archiv herunterladen
+8. optional den bevorzugten Live-Weg speichern
+9. `Fleet-Sync`, `Token-Sync` oder `Demo-Sync` ausloesen
+10. PDFs im Archiv herunterladen
 
 ## Echte Tesla-Daten testen
 
 Es gibt aktuell zwei Wege:
 
-1. Offizieller Tesla-Login
-   Der empfohlene Weg. Setze als Betreiber `TESLA_CLIENT_ID`, `TESLA_CLIENT_SECRET` und die passende `TESLA_FLEET_API_BASE_URL`. Danach klicken Endkunden im Dashboard auf `Mit Tesla verbinden`.
+1. Offizieller Tesla-Login ueber Fleet API
+   Der empfohlene Weg fuer ein spaeteres Produkt. Setze als Betreiber `ENABLE_TESLA_FLEET_OAUTH=true`, `TESLA_CLIENT_ID`, `TESLA_CLIENT_SECRET` und die passende `TESLA_FLEET_API_BASE_URL`. Danach klicken Endkunden im Dashboard auf `Offiziell mit Tesla verbinden`.
 
-2. Experten-Fallback ueber Cache oder Refresh-Token
-   Nur fuer Migration oder Fehlersuche. Im Dashboard gibt es dafuer einen ausklappbaren Bereich.
+2. Inoffizieller Token-Import ohne Fleet-Billing
+   Der praktische Weg fuer Self-Hosted-Tests. Setze `ENABLE_TESLA_OWNER_IMPORT=true` und trage im Dashboard eine Tesla-Konto-E-Mail plus Refresh-Token oder TeslaPy-/tesla_ha-Cache ein.
 
 Danach:
 
 1. echte VIN speichern
-2. `Mit Tesla verbinden` klicken oder den manuellen Import speichern
-3. `Tesla-Sync ausloesen` klicken
-4. Rechnungs-PDFs im Archiv oder Maileingang pruefen
+2. den gewuenschten Tesla-Weg verbinden
+3. optional den bevorzugten Live-Weg speichern
+4. `Fleet-Sync` oder `Token-Sync` ausloesen
+5. Rechnungs-PDFs im Archiv oder Maileingang pruefen
 
 ## E-Mail-Test: Was passiert genau?
 
@@ -219,6 +228,8 @@ Wichtige Variablen in Unraid:
 - `DEMO_MODE=true`
 - `LOG_LEVEL`
 - `DEFAULT_FROM_EMAIL`
+- `ENABLE_TESLA_FLEET_OAUTH`
+- `ENABLE_TESLA_OWNER_IMPORT`
 - `TESLA_CLIENT_ID`
 - `TESLA_CLIENT_SECRET`
 - `TESLA_FLEET_API_BASE_URL`

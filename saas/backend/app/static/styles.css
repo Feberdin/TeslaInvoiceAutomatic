@@ -439,6 +439,10 @@ input[type="checkbox"] {
   margin-bottom: 12px;
 }
 
+.section-head-compact {
+  margin-bottom: 0;
+}
+
 .inline-section {
   margin-top: 8px;
 }
@@ -449,26 +453,72 @@ input[type="checkbox"] {
   gap: 14px;
 }
 
-.manual-import-details {
-  margin-top: 8px;
-  padding: 16px 18px;
+.connection-method-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 18px;
+  margin-top: 18px;
+}
+
+.connection-card,
+.tesla-preference-panel {
+  padding: 20px;
   background: var(--surface);
-  border-radius: 18px;
+  border-radius: 20px;
   border: 1px solid rgba(24, 34, 47, 0.08);
 }
 
-.manual-import-details summary {
-  cursor: pointer;
-  font-weight: 700;
-  list-style: none;
+.connection-card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 14px;
+  margin-bottom: 10px;
 }
 
-.manual-import-details summary::-webkit-details-marker {
-  display: none;
+.connection-card h3,
+.tesla-preference-panel h3 {
+  font-size: 1.2rem;
+  margin-bottom: 6px;
 }
 
-.manual-import-details[open] summary {
-  margin-bottom: 14px;
+.compact-checkpoints {
+  margin-top: 14px;
+}
+
+.radio-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.radio-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 14px 16px;
+  border-radius: 18px;
+  background: var(--surface-strong);
+  border: 1px solid rgba(24, 34, 47, 0.08);
+}
+
+.radio-card span {
+  display: grid;
+  gap: 4px;
+}
+
+.radio-card small {
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.radio-card input {
+  margin-top: 3px;
+}
+
+.card-disabled {
+  opacity: 0.72;
 }
 
 .pill-grid {
@@ -584,6 +634,11 @@ th {
   }
 
   .form-grid-two {
+    grid-template-columns: 1fr;
+  }
+
+  .connection-method-grid,
+  .radio-card-grid {
     grid-template-columns: 1fr;
   }
 

@@ -11,9 +11,10 @@ Im kombinierten Repository liegt der eigentliche Anwendungscode unter `saas/`.
 - Single-Container-Laufmodus im Python-Image
 - Registrierung, Login und Session-Cookies
 - VIN-Verwaltung, Testmail und Rechnungsarchiv
-- offizieller Tesla-OAuth-Login fuer Endkunden
-- manueller Tesla-Import nur als technischer Fallback
+- offizieller Tesla-Fleet-Login fuer Endkunden
+- inoffizieller Tesla-Token-Import fuer Self-Hosted-Tests ohne Fleet-Billing
 - Demo-Fallback, falls noch kein echter Tesla-Zugang verbunden ist
+- bevorzugter Live-Weg, falls beide Varianten gespeichert sind
 
 ## Wichtiger Hinweis
 
@@ -43,6 +44,8 @@ Ohne veroeffentlichtes Image kann Unraid zwar das Template sehen, aber den Conta
   `/mnt/cache/appdata/tesla-invoice-automatic-saas -> /data`
 - Pflichtvariablen:
   `APP_BASE_URL`, `SECRET_KEY`, `DATABASE_URL`, `DATA_DIR`, `DEMO_MODE`, `DEFAULT_FROM_EMAIL`
+- Fuer beide Tesla-Varianten:
+  `ENABLE_TESLA_FLEET_OAUTH`, `ENABLE_TESLA_OWNER_IMPORT`
 - Fuer offiziellen Tesla-Login:
   `TESLA_CLIENT_ID`, `TESLA_CLIENT_SECRET`, `TESLA_FLEET_API_BASE_URL`
 - Fuer echten Mailtest:
@@ -53,12 +56,13 @@ Ohne veroeffentlichtes Image kann Unraid zwar das Template sehen, aber den Conta
 1. App installieren und starten
 2. `/auth` oeffnen
 3. Konto registrieren
-4. im Dashboard `Mit Tesla verbinden` klicken
+4. im Dashboard offiziellen Fleet-Login oder inoffiziellen Token-Import waehlen
 5. eine VIN hinterlegen
-6. Empfaenger speichern
-7. `Testrechnung senden` pruefen
-8. `Tesla-Sync ausloesen` oder `Demo-Sync ausloesen`
-9. Logs, PDFs und `email-outbox.log` kontrollieren
+6. optional den bevorzugten Live-Weg speichern
+7. Empfaenger speichern
+8. `Testrechnung senden` pruefen
+9. `Fleet-Sync`, `Token-Sync` oder `Demo-Sync` ausloesen
+10. Logs, PDFs und `email-outbox.log` kontrollieren
 
 ## Debug-Hinweise
 

@@ -112,6 +112,18 @@ class TeslaConnectRequest(BaseModel):
         )
 
 
+class TeslaModePreferenceRequest(BaseModel):
+    preferred_live_sync_mode: str = Field(default="auto", min_length=4, max_length=32)
+
+    @field_validator("preferred_live_sync_mode")
+    @classmethod
+    def validate_preferred_mode(cls, value: str) -> str:
+        normalized = value.strip().lower()
+        if normalized not in {"auto", "fleet_oauth", "owner_api"}:
+            raise ValueError("Erlaubt sind nur `auto`, `fleet_oauth` oder `owner_api`.")
+        return normalized
+
+
 class ManualSyncRequest(BaseModel):
     include_fresh_demo_invoice: bool = True
 
@@ -169,5 +181,8 @@ class CurrentUserResponse(BaseModel):
     tesla_account_email: str | None
     tesla_last_error: str | None
     tesla_connection_mode: str
+    preferred_live_sync_mode: str
+    connected_tesla_modes: list[str]
     tesla_oauth_available: bool
     tesla_oauth_start_path: str | None
+    tesla_owner_import_available: bool

@@ -32,6 +32,7 @@ from app.schemas import (
     RegisterRequest,
     SessionResponse,
     TeslaConnectRequest,
+    TeslaModePreferenceRequest,
     TestEmailRequest,
     VehicleCreateRequest,
     VehicleResponse,
@@ -49,6 +50,7 @@ from app.services.tesla_owner import (
     TeslaOwnerApiClient,
     build_imported_tokens,
 )
+from app.tesla_modes import connected_live_modes, normalize_preferred_live_sync_mode, select_live_account
 from app.token_store import encrypt_secret
 
 
@@ -89,12 +91,9 @@ def _get_current_user(request: Request, db: Session) -> User:
 
 
 def _active_sync_account(user: User) -> TeslaAccount | None:
-    fleet_account = next((account for account in user.tesla_accounts if account.mode == "fleet_oauth"), None)
-    if fleet_account is not None:
-        return fleet_account
-    owner_account = next((account for account in user.tesla_accounts if account.mode == "owner_api"), None)
-    if owner_account is not None:
-        return owner_account
+    live_account = select_live_account(list(user.tesla_accounts), getattr(user, "preferred_live_sync_mode", "auto"))
+    if live_account is not None:
+        return live_account
     if settings.demo_mode:
         return next((account for account in user.tesla_accounts if account.mode == "demo"), None)
     return None
@@ -126,10 +125,9 @@ def _extract_region_base_url(region_payload: dict[str, object]) -> str | None:
 
 def _serialize_current_user(db: Session, user: User) -> CurrentUserResponse:
     account = _active_sync_account(user)
-    live_account = next(
-        (item for item in user.tesla_accounts if item.mode in {"fleet_oauth", "owner_api"}),
-        None,
-    )
+    preferred_live_sync_mode = normalize_preferred_live_sync_mode(getattr(user, "preferred_live_sync_mode", "auto"))
+    live_account = select_live_account(list(user.tesla_accounts), preferred_live_sync_mode)
+    live_modes = connected_live_modes(list(user.tesla_accounts))
     recipients = (
         [item.strip() for item in user.email_settings.recipients_csv.split(",") if item.strip()]
         if user.email_settings and user.email_settings.recipients_csv
@@ -171,8 +169,11 @@ def _serialize_current_user(db: Session, user: User) -> CurrentUserResponse:
         tesla_account_email=live_account.tesla_account_email if live_account else None,
         tesla_last_error=live_account.last_error if live_account else None,
         tesla_connection_mode=live_account.mode if live_account else "none",
+        preferred_live_sync_mode=preferred_live_sync_mode,
+        connected_tesla_modes=live_modes,
         tesla_oauth_available=tesla_oauth_available(settings),
         tesla_oauth_start_path="/api/v1/tesla/oauth/start" if tesla_oauth_available(settings) else None,
+        tesla_owner_import_available=settings.enable_tesla_owner_import,
     )
 
 
@@ -358,6 +359,15 @@ def connect_tesla(
 ) -> dict[str, object]:
     user = _get_current_user(request, db)
 
+    if not settings.enable_tesla_owner_import:
+        raise HTTPException(
+            status_code=403,
+            detail=(
+                "Der inoffizielle Tesla-Token-Import ist fuer diese Installation deaktiviert. "
+                "Bitte den Betreiber um `ENABLE_TESLA_OWNER_IMPORT=true` oder nutze den Fleet-Login."
+            ),
+        )
+
     try:
         imported_tokens = build_imported_tokens(
             tesla_account_email=payload.tesla_account_email,
@@ -409,11 +419,27 @@ def connect_tesla(
     db.refresh(account)
     return {
         "message": (
-            "Tesla-Zugang wurde gespeichert. Fuehre jetzt einen Live-Sync fuer deine VINs aus, "
-            "um echte Rechnungen zu laden."
+            "Inoffizieller Tesla-Zugang wurde gespeichert. Fuehre jetzt einen Live-Sync fuer deine VINs aus, "
+            "um echte Rechnungen ohne Fleet-Login zu laden."
         ),
         "tesla_account_email": account.tesla_account_email,
         "mode": account.mode,
+    }
+
+
+@router.post("/settings/tesla-mode", summary="Store the preferred Tesla live mode for VIN linking and syncs")
+def save_tesla_mode_preference(
+    payload: TeslaModePreferenceRequest,
+    request: Request,
+    db: Session = Depends(get_db_session),
+) -> dict[str, str]:
+    user = _get_current_user(request, db)
+    user.preferred_live_sync_mode = payload.preferred_live_sync_mode
+    db.add(user)
+    db.commit()
+    return {
+        "message": "Der bevorzugte Tesla-Live-Weg wurde gespeichert.",
+        "preferred_live_sync_mode": user.preferred_live_sync_mode,
     }
 
 

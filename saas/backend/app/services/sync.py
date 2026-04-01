@@ -25,6 +25,7 @@ from app.services.tesla_fleet import TeslaFleetApiClient
 from app.services.storage import LocalFileStorage
 from app.services.tesla import DemoTeslaClient
 from app.services.tesla_owner import TeslaOwnerApiClient
+from app.tesla_modes import mode_label, select_live_account
 
 
 logger = logging.getLogger(__name__)
@@ -118,8 +119,9 @@ class InvoiceSyncService:
         if created_invoices and email_settings and email_settings.recipients_csv:
             recipients = [item.strip() for item in email_settings.recipients_csv.split(",") if item.strip()]
             subject = email_settings.subject_template.format(email=user.email, count=len(created_invoices))
+            source_label = mode_label(sync_mode)
             body = (
-                f"Es wurden {len(created_invoices)} neue {'Tesla-' if sync_mode == 'owner_api' else 'Demo-'}Rechnungen "
+                f"Es wurden {len(created_invoices)} neue Rechnungen ueber {source_label} "
                 f"fuer {user.email} verarbeitet. "
                 f"Die PDFs liegen im Datenverzeichnis und koennen im Dashboard heruntergeladen werden."
             )
@@ -163,13 +165,9 @@ class InvoiceSyncService:
         return summaries
 
     def _resolve_sync_accounts(self, user: User) -> tuple[list[TeslaAccount], str]:
-        fleet_accounts = [account for account in user.tesla_accounts if account.mode == "fleet_oauth"]
-        if fleet_accounts:
-            return fleet_accounts, "fleet_oauth"
-
-        owner_accounts = [account for account in user.tesla_accounts if account.mode == "owner_api"]
-        if owner_accounts:
-            return owner_accounts, "owner_api"
+        live_account = select_live_account(list(user.tesla_accounts), getattr(user, "preferred_live_sync_mode", "auto"))
+        if live_account is not None:
+            return [live_account], live_account.mode
 
         demo_accounts = [account for account in user.tesla_accounts if account.mode == "demo"]
         if demo_accounts and settings.demo_mode:
@@ -225,7 +223,7 @@ class InvoiceSyncService:
     def _store_last_error(self, user_id: int, message: str) -> None:
         accounts = self.db.scalars(select(TeslaAccount).where(TeslaAccount.user_id == user_id)).all()
         for account in accounts:
-            if account.mode == "owner_api":
+            if account.mode in {"owner_api", "fleet_oauth"}:
                 account.last_error = message
         self.db.commit()
 

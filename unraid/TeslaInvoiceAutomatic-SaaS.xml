@@ -15,8 +15,9 @@ TeslaInvoiceAutomatic SaaS Test-App fuer Unraid.
 Diese Unraid-App startet die aktuelle SaaS-Testversion als Einzelcontainer:
 - Registrierung und Login
 - VIN-Verwaltung pro Nutzer
-- offizieller Tesla-OAuth-Login fuer Endkunden
-- manueller Tesla-Import nur als technischer Fallback
+- offizieller Tesla-Fleet-Login fuer Endkunden
+- inoffizieller Tesla-Token-Import fuer Self-Hosted-Tests ohne Fleet-Billing
+- bevorzugter Live-Weg, falls beide Varianten gespeichert sind
 - Testrechnung per SMTP oder Outbox-Log
 - Live-Tesla-Sync fuer echte Supercharger-Rechnungen
 - Demo-Fallback, wenn noch kein echter Tesla-Zugang verbunden ist
@@ -27,7 +28,7 @@ Diese Unraid-App startet die aktuelle SaaS-Testversion als Einzelcontainer:
 - PDF-Rechnungen und Mail-Outbox im Volume
 
 Hinweis:
-Dies ist die MVP-Variante fuer Tests. Endkunden koennen sich per offizieller Tesla Fleet OAuth verbinden, sobald der Betreiber `TESLA_CLIENT_ID`, `TESLA_CLIENT_SECRET` und die passende Fleet-Region gesetzt hat. Fuer spaetere produktive Nutzung mit PostgreSQL, Redis und getrennten Services ist weiterhin eine Compose-/Multi-Container-Variante sinnvoll.
+Dies ist die MVP-Variante fuer Tests. Endkunden koennen sich per offizieller Tesla Fleet OAuth verbinden, sobald der Betreiber `ENABLE_TESLA_FLEET_OAUTH=true`, `TESLA_CLIENT_ID`, `TESLA_CLIENT_SECRET` und die passende Fleet-Region gesetzt hat. Fuer Self-Hosted-Tests ohne Fleet-Billing bleibt parallel der inoffizielle Token-Import verfuegbar, sofern `ENABLE_TESLA_OWNER_IMPORT=true` gesetzt ist. Fuer spaetere produktive Nutzung mit PostgreSQL, Redis und getrennten Services ist weiterhin eine Compose-/Multi-Container-Variante sinnvoll.
   </Overview>
   <Category>Productivity:Tools:</Category>
   <WebUI>http://[IP]:[PORT:8000]/auth</WebUI>
@@ -48,6 +49,8 @@ Dies ist die MVP-Variante fuer Tests. Endkunden koennen sich per offizieller Tes
   <Config Name="Log Level" Target="LOG_LEVEL" Default="INFO" Mode="" Description="DEBUG, INFO, WARNING oder ERROR" Type="Variable" Display="advanced" Required="true" Mask="false">INFO</Config>
   <Config Name="Default Demo User Email" Target="DEMO_USER_EMAIL" Default="demo@feberdin.local" Mode="" Description="Vorausgefuellte Demo-E-Mail im Dashboard." Type="Variable" Display="advanced" Required="true" Mask="false">demo@feberdin.local</Config>
   <Config Name="Default From E-Mail" Target="DEFAULT_FROM_EMAIL" Default="no-reply@deine-domain.tld" Mode="" Description="Absender fuer Testmails und Demo-Sync-Benachrichtigungen." Type="Variable" Display="always" Required="true" Mask="false">no-reply@deine-domain.tld</Config>
+  <Config Name="Enable Tesla Fleet OAuth" Target="ENABLE_TESLA_FLEET_OAUTH" Default="true" Mode="" Description="Aktiviert den offiziellen Tesla Fleet Login im Dashboard." Type="Variable" Display="always" Required="false" Mask="false">true</Config>
+  <Config Name="Enable Inoffiziellen Tesla Import" Target="ENABLE_TESLA_OWNER_IMPORT" Default="true" Mode="" Description="Aktiviert den inoffiziellen Token-Import ohne Fleet-Billing." Type="Variable" Display="always" Required="false" Mask="false">true</Config>
   <Config Name="Tesla Client ID" Target="TESLA_CLIENT_ID" Default="" Mode="" Description="Client ID aus dem Tesla Developer Portal fuer den offiziellen Tesla-Login." Type="Variable" Display="always" Required="false" Mask="false"></Config>
   <Config Name="Tesla Client Secret" Target="TESLA_CLIENT_SECRET" Default="" Mode="" Description="Client Secret aus dem Tesla Developer Portal." Type="Variable" Display="always" Required="false" Mask="true"></Config>
   <Config Name="Tesla Fleet API Base URL" Target="TESLA_FLEET_API_BASE_URL" Default="https://fleet-api.prd.eu.vn.cloud.tesla.com" Mode="" Description="Regionale Fleet-API-Basis, z. B. EU oder NA." Type="Variable" Display="always" Required="false" Mask="false">https://fleet-api.prd.eu.vn.cloud.tesla.com</Config>

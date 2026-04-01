@@ -96,8 +96,8 @@ Debug: If actions update the wrong user, inspect the active session and the `/ap
             <p class="eyebrow">Tesla Quelle</p>
             <h3 id="tesla-mode-title">{% if demo_mode %}Aktuell nur Demo-Rechnungen{% else %}Bitte Tesla verbinden{% endif %}</h3>
             <p id="tesla-mode-body">
-              Echte Tesla-Supercharger-Rechnungen werden aktiv, sobald du unten deinen Tesla-Zugang importierst
-              und mindestens eine echte VIN speicherst.
+              Echte Tesla-Supercharger-Rechnungen werden aktiv, sobald du unten entweder den offiziellen Fleet-Login
+              oder den inoffiziellen Token-Import verbindest und mindestens eine echte VIN speicherst.
             </p>
             <div class="checkpoint-list">
               <div class="checkpoint-item is-done">Login, VINs und Nutzerkonten funktionieren</div>
@@ -121,51 +121,112 @@ Debug: If actions update the wrong user, inspect the active session and the `/ap
         <div class="section-head">
           <div>
             <p class="eyebrow">Tesla Verbindung</p>
-            <h2>Echte Tesla-Daten aktivieren</h2>
+            <h2>Offiziell oder inoffiziell verbinden</h2>
           </div>
           <div class="inline-pills">
             <span id="tesla-connection-badge" class="soft-pill">Noch nicht verbunden</span>
           </div>
         </div>
         <p id="tesla-connection-help" class="helper">
-          Kunden sollen spaeter einfach mit Tesla einloggen koennen. Wenn die Betreiber-Konfiguration gesetzt ist,
-          startet der Button unten den offiziellen Tesla-OAuth-Flow. Der manuelle Token-Import bleibt nur als Experten-Fallback sichtbar.
+          Diese Testversion bietet bewusst zwei Wege an: den offiziellen Fleet-Login fuer ein spaeteres SaaS-Produkt
+          und den inoffiziellen Token-Import fuer Self-Hosted-Tests ohne Fleet-Billing.
         </p>
-        <div class="button-row">
-          <button id="connect-tesla-oauth" class="primary" type="button">Mit Tesla verbinden</button>
-          <button id="run-sync" class="secondary" type="button">Sync ausloesen</button>
+        <div class="connection-method-grid">
+          <section id="fleet-card" class="connection-card">
+            <div class="connection-card-head">
+              <div>
+                <p class="eyebrow">Variante A</p>
+                <h3>Offizieller Fleet-Login</h3>
+              </div>
+              <span id="fleet-status-pill" class="soft-pill">Noch nicht aktiv</span>
+            </div>
+            <p class="helper" id="fleet-help-copy">
+              Fuer spaeteren Kundeneinsatz gedacht. Dieser Weg ist der offizielle Tesla-Flow, benoetigt aber Fleet-API-Konfiguration
+              und kann Tesla-seitige Kosten verursachen.
+            </p>
+            <div class="checkpoint-list compact-checkpoints">
+              <div class="checkpoint-item is-done">Sauberer SaaS-Login fuer Endkunden</div>
+              <div class="checkpoint-item is-next">Tesla Fleet API und Billing koennen noetig sein</div>
+            </div>
+            <div class="button-row">
+              <button id="connect-tesla-oauth" class="primary" type="button">Offiziell mit Tesla verbinden</button>
+            </div>
+          </section>
+
+          <section id="owner-card" class="connection-card">
+            <div class="connection-card-head">
+              <div>
+                <p class="eyebrow">Variante B</p>
+                <h3>Inoffizieller Token-Import</h3>
+              </div>
+              <span id="owner-status-pill" class="soft-pill">Bereit</span>
+            </div>
+            <p class="helper" id="owner-help-copy">
+              Fuer Self-Hosted- und Technik-Tests ohne Fleet-Billing. Dafuer brauchst du manuell ein Refresh-Token oder eine TeslaPy-/tesla_ha-Cache-Datei.
+            </p>
+            <label for="tesla-account-email">Tesla Konto E-Mail</label>
+            <input id="tesla-account-email" type="email" placeholder="z. B. dein.tesla.konto@example.com" />
+            <label for="tesla-cache-json">TeslaPy / tesla_ha cache.json (optional)</label>
+            <textarea
+              id="tesla-cache-json"
+              placeholder='Kompletten JSON-Inhalt einfuegen, z. B. {"dein@email.de": {"url": "...", "sso": {...}}}'
+            ></textarea>
+            <div class="form-grid-two">
+              <div>
+                <label for="tesla-refresh-token">Refresh-Token</label>
+                <input id="tesla-refresh-token" type="password" placeholder="Tesla Refresh-Token" />
+              </div>
+              <div>
+                <label for="tesla-access-token">Access-Token (optional)</label>
+                <input id="tesla-access-token" type="password" placeholder="Tesla Access-Token" />
+              </div>
+            </div>
+            <p class="helper">
+              Die Tokens werden nur gespeichert und validiert. Nach erfolgreichem Speichern leert das Dashboard die Eingabefelder wieder.
+            </p>
+            <div class="button-row">
+              <button id="connect-tesla" class="secondary" type="button">Inoffiziellen Zugang speichern</button>
+            </div>
+          </section>
         </div>
-        <details class="manual-import-details">
-          <summary>Expertenmodus: Tesla-Tokens manuell importieren</summary>
-          <p class="helper">
-            Dieser Bereich ist nur fuer Migrationen oder Fehlersuche gedacht. Im normalen Kundeneinsatz sollte stattdessen der
-            offizielle Tesla-Login oben verwendet werden.
-          </p>
-        <label for="tesla-account-email">Tesla Konto E-Mail</label>
-        <input id="tesla-account-email" type="email" placeholder="z. B. dein.tesla.konto@example.com" />
-        <label for="tesla-cache-json">TeslaPy / tesla_ha cache.json (empfohlen)</label>
-        <textarea
-          id="tesla-cache-json"
-          placeholder='Kompletten JSON-Inhalt einfuegen, z. B. {"dein@email.de": {"url": "...", "sso": {...}}}'
-        ></textarea>
-        <div class="form-grid-two">
-          <div>
-            <label for="tesla-refresh-token">Refresh-Token (alternativ)</label>
-            <input id="tesla-refresh-token" type="password" placeholder="Tesla Refresh-Token" />
+
+        <section class="tesla-preference-panel">
+          <div class="section-head section-head-compact">
+            <div>
+              <h3>Bevorzugter Live-Weg</h3>
+              <p class="helper">
+                Wenn beide Varianten hinterlegt sind, steuert diese Auswahl, welche Verbindung fuer neue VINs und Live-Syncs bevorzugt wird.
+              </p>
+            </div>
+            <button id="save-tesla-preference" class="secondary" type="button">Bevorzugten Weg speichern</button>
           </div>
-          <div>
-            <label for="tesla-access-token">Access-Token (optional)</label>
-            <input id="tesla-access-token" type="password" placeholder="Tesla Access-Token" />
+          <div class="radio-card-grid">
+            <label class="radio-card">
+              <input id="preferred-mode-auto" type="radio" name="preferred-live-mode" value="auto" checked />
+              <span>
+                <strong>Automatisch</strong>
+                <small>Fleet wird bevorzugt, wenn er vorhanden ist.</small>
+              </span>
+            </label>
+            <label class="radio-card">
+              <input id="preferred-mode-fleet" type="radio" name="preferred-live-mode" value="fleet_oauth" />
+              <span>
+                <strong>Fleet API</strong>
+                <small>Nutze bevorzugt den offiziellen Tesla-Login.</small>
+              </span>
+            </label>
+            <label class="radio-card">
+              <input id="preferred-mode-owner" type="radio" name="preferred-live-mode" value="owner_api" />
+              <span>
+                <strong>Inoffizieller Weg</strong>
+                <small>Bevorzuge den Token-Import fuer Self-Hosted-Tests.</small>
+              </span>
+            </label>
           </div>
-        </div>
-        <p class="helper">
-          Die eingegebenen Tesla-Tokens werden nur zum Speichern und Validieren verwendet. Nach erfolgreichem Speichern
-          leert das Dashboard die Eingabefelder wieder.
-        </p>
-        </details>
+        </section>
         <div id="tesla-error-box" class="notice error" hidden></div>
         <div class="button-row">
-          <button id="connect-tesla" class="secondary" type="button">Manuellen Import speichern</button>
+          <button id="run-sync" class="secondary" type="button">Sync ausloesen</button>
         </div>
       </article>
 
