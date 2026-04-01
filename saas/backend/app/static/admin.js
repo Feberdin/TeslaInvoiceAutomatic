@@ -1,9 +1,21 @@
-/* Purpose: Drive the operator-only Tesla Fleet admin menu for key generation, partner registration and verification.
-Input/Output: Fetches `/api/v1/admin/fleet/*` endpoints, renders diagnostics and triggers explicit admin actions.
-Invariants: This page never exposes private-key contents, and all requests rely on the existing session cookie plus server-side admin checks.
-Debug: If Tesla partner setup still fails, inspect the rendered HTTP status, the public-key URL and the latest register/verify messages first. */
+/* Purpose: Drive the operator-only Tesla Fleet admin menu, including partner setup and beta debug tools.
+Input/Output: Reads `/api/v1/admin/fleet/status` plus `/api/v1/me`, renders diagnostics and triggers explicit admin/debug actions.
+Invariants: Private keys never leave the server, all requests stay session-bound and beta debug tooling remains operator-only.
+Debug: If Fleet setup or debug tools stop working, compare `/api/v1/admin/fleet/status` and `/api/v1/me` before changing templates. */
 
 let currentAdminStatus = null;
+let currentProfile = null;
+
+const MODE_LABELS = {
+  fleet_oauth: "Fleet API",
+  owner_api: "Inoffizieller Import",
+  demo: "Demo-Fallback",
+  none: "Noch offen",
+};
+
+function modeLabel(mode) {
+  return MODE_LABELS[mode] || "Tesla";
+}
 
 function extractErrorMessage(payload) {
   if (!payload) {
@@ -11,6 +23,17 @@ function extractErrorMessage(payload) {
   }
   if (typeof payload.detail === "string" && payload.detail.trim()) {
     return payload.detail;
+  }
+  if (Array.isArray(payload.detail) && payload.detail.length) {
+    return payload.detail
+      .map((item) => {
+        if (typeof item === "string") {
+          return item;
+        }
+        const location = Array.isArray(item.loc) ? item.loc.join(" -> ") : "Eingabe";
+        return `${location}: ${item.msg || "ungueltiger Wert"}`;
+      })
+      .join(" | ");
   }
   if (typeof payload.message === "string" && payload.message.trim()) {
     return payload.message;
@@ -39,6 +62,7 @@ async function apiRequest(path, options = {}) {
   if (!response.ok) {
     throw new Error(extractErrorMessage(payload));
   }
+
   return payload;
 }
 
@@ -51,6 +75,19 @@ function showNotice(message, type = "info") {
 
 function formatDate(value) {
   return value ? new Date(value).toLocaleString("de-DE") : "noch nie";
+}
+
+function humanizeSyncInterval(seconds) {
+  if (!seconds || Number.isNaN(seconds)) {
+    return "-";
+  }
+  if (seconds % 3600 === 0) {
+    return `${seconds / 3600} Std.`;
+  }
+  if (seconds % 60 === 0) {
+    return `${seconds / 60} Min.`;
+  }
+  return `${seconds} Sek.`;
 }
 
 function labelFromStatus(status) {
@@ -78,6 +115,7 @@ function renderStatus(status) {
 
   document.getElementById("admin-app-domain").textContent = status.app_domain;
   document.getElementById("admin-fleet-base").textContent = status.fleet_api_base_url;
+  document.getElementById("admin-sync-interval").textContent = humanizeSyncInterval(status.sync_interval_seconds);
   document.getElementById("admin-key-status").textContent = status.public_key_present ? "vorhanden" : "fehlt";
   document.getElementById("admin-verify-status").textContent = labelFromStatus(status.last_verify_status);
   document.getElementById("admin-public-key-url").textContent = status.public_key_url;
@@ -111,9 +149,76 @@ function renderStatus(status) {
     : "Public Key erzeugen";
 }
 
+function renderVehicles(vehicles) {
+  const container = document.getElementById("debug-vehicle-list");
+  container.innerHTML = "";
+
+  if (!vehicles.length) {
+    container.innerHTML = '<p class="helper">Noch keine VIN registriert.</p>';
+    return;
+  }
+
+  for (const vehicle of vehicles) {
+    const card = document.createElement("div");
+    card.className = "list-item list-item-wrap";
+    card.innerHTML = `
+      <div class="list-copy">
+        <strong>${vehicle.nickname}</strong>
+        <div class="helper">${vehicle.vin} - ${vehicle.model}</div>
+        <div class="tag-row">
+          <span class="mini-tag ${vehicle.account_mode === "fleet_oauth" ? "tag-live" : "tag-demo"}">${modeLabel(vehicle.account_mode)}</span>
+        </div>
+      </div>
+      <button class="secondary small-button" type="button" data-delete-vehicle="${vehicle.id}">Entfernen</button>
+    `;
+    container.appendChild(card);
+  }
+
+  container.querySelectorAll("[data-delete-vehicle]").forEach((button) => {
+    button.addEventListener("click", () =>
+      deleteVehicle(Number(button.dataset.deleteVehicle)).catch((error) => showNotice(error.message, "error"))
+    );
+  });
+}
+
+function renderProfile(profile) {
+  currentProfile = profile;
+  renderVehicles(profile.vehicles);
+
+  const ownerImportEnabled = Boolean(profile.tesla_owner_import_available);
+  document.getElementById("admin-owner-import-pill").textContent = ownerImportEnabled
+    ? "Token-Import bereit"
+    : "Token-Import deaktiviert";
+  document.getElementById("debug-owner-connect-button").disabled = !ownerImportEnabled;
+  document.getElementById("debug-owner-import-help").textContent = ownerImportEnabled
+    ? "Dieser Import bleibt fuer Self-Hosted-Debug und Vergleichstests verfuegbar, falls du Beta-Faelle ohne Fleet-Billing nachvollziehen willst."
+    : "Der inoffizielle Token-Import ist auf dieser Installation deaktiviert. Setze dafuer `ENABLE_TESLA_OWNER_IMPORT=true`.";
+
+  const ownerEmailInput = document.getElementById("debug-owner-email");
+  if (!ownerEmailInput.value.trim()) {
+    ownerEmailInput.value = profile.tesla_connection_mode === "owner_api" && profile.tesla_account_email
+      ? profile.tesla_account_email
+      : profile.email;
+  }
+}
+
 async function refreshStatus() {
   const status = await apiRequest("/api/v1/admin/fleet/status");
   renderStatus(status);
+}
+
+async function refreshProfile() {
+  const profile = await apiRequest("/api/v1/me");
+  renderProfile(profile);
+}
+
+async function refreshAdminPage() {
+  const [status, profile] = await Promise.all([
+    apiRequest("/api/v1/admin/fleet/status"),
+    apiRequest("/api/v1/me"),
+  ]);
+  renderStatus(status);
+  renderProfile(profile);
 }
 
 async function generateKeyPair() {
@@ -147,6 +252,52 @@ async function registerPartnerApplication() {
   await refreshStatus();
 }
 
+async function sendDebugTestEmail() {
+  const recipientOverride = document.getElementById("debug-test-email-override").value.trim() || null;
+  const payload = await apiRequest("/api/v1/email/test", {
+    method: "POST",
+    body: JSON.stringify({ recipient_override: recipientOverride }),
+  });
+  const recipients = Array.isArray(payload.recipients) ? payload.recipients.join(", ") : "";
+  showNotice(`Testmail verarbeitet. Modus: ${payload.delivery_mode}. Empfaenger: ${recipients || "keine"}.`);
+}
+
+async function addVehicle() {
+  const vin = document.getElementById("debug-vin").value.trim();
+  const nickname = document.getElementById("debug-vin-nickname").value.trim();
+  const payload = await apiRequest("/api/v1/vehicles", {
+    method: "POST",
+    body: JSON.stringify({ vin, nickname }),
+  });
+  showNotice(`VIN ${payload.vin} wurde gespeichert.`);
+  document.getElementById("debug-vin").value = "";
+  document.getElementById("debug-vin-nickname").value = "";
+  await refreshProfile();
+}
+
+async function deleteVehicle(vehicleId) {
+  const payload = await apiRequest(`/api/v1/vehicles/${vehicleId}`, { method: "DELETE" });
+  showNotice(payload.message);
+  await refreshProfile();
+}
+
+async function connectOwnerImport() {
+  const payload = await apiRequest("/api/v1/tesla/connect", {
+    method: "POST",
+    body: JSON.stringify({
+      tesla_account_email: document.getElementById("debug-owner-email").value.trim(),
+      cache_json: document.getElementById("debug-owner-cache-json").value.trim() || null,
+      refresh_token: document.getElementById("debug-owner-refresh-token").value.trim() || null,
+      access_token: document.getElementById("debug-owner-access-token").value.trim() || null,
+    }),
+  });
+  showNotice(payload.message);
+  document.getElementById("debug-owner-cache-json").value = "";
+  document.getElementById("debug-owner-refresh-token").value = "";
+  document.getElementById("debug-owner-access-token").value = "";
+  await refreshProfile();
+}
+
 document.addEventListener("DOMContentLoaded", async () => {
   document.getElementById("generate-key-button").addEventListener("click", () =>
     generateKeyPair().catch((error) => showNotice(error.message, "error"))
@@ -157,9 +308,18 @@ document.addEventListener("DOMContentLoaded", async () => {
   document.getElementById("register-partner-button").addEventListener("click", () =>
     registerPartnerApplication().catch((error) => showNotice(error.message, "error"))
   );
+  document.getElementById("debug-send-test-email-button").addEventListener("click", () =>
+    sendDebugTestEmail().catch((error) => showNotice(error.message, "error"))
+  );
+  document.getElementById("debug-add-vehicle-button").addEventListener("click", () =>
+    addVehicle().catch((error) => showNotice(error.message, "error"))
+  );
+  document.getElementById("debug-owner-connect-button").addEventListener("click", () =>
+    connectOwnerImport().catch((error) => showNotice(error.message, "error"))
+  );
 
   try {
-    await refreshStatus();
+    await refreshAdminPage();
   } catch (error) {
     showNotice(error.message, "error");
   }

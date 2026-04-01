@@ -29,14 +29,11 @@ Debug: If actions update the wrong user, inspect the active session and the `/ap
 
       <article class="panel">
         <p class="eyebrow">VINs</p>
-        <h2>Fahrzeuge hinterlegen</h2>
-        <label for="vehicle-vin">VIN</label>
-        <input id="vehicle-vin" type="text" maxlength="17" placeholder="z. B. 5YJ..." />
-        <label for="vehicle-nickname">Bezeichnung</label>
-        <input id="vehicle-nickname" type="text" maxlength="100" placeholder="z. B. Model Y Geschaeftswagen" />
-        <div class="button-row">
-          <button id="add-vehicle" class="primary" type="button">VIN speichern</button>
-        </div>
+        <h2>Registrierte Fahrzeuge</h2>
+        <p class="helper">
+          Im Beta-Test werden Fahrzeuge normalerweise automatisch ueber den offiziellen Tesla-Fleet-Login verknuepft.
+          Manuelle VIN-Debug-Werkzeuge findest du nur im Admin-Menue.
+        </p>
         <div id="vehicle-list" class="stack compact-stack"></div>
       </article>
 
@@ -51,15 +48,18 @@ Debug: If actions update the wrong user, inspect the active session and the `/ap
           <input id="attach-pdf" type="checkbox" checked />
           <span>PDF als Anhang mitsenden</span>
         </label>
-        <label for="test-email-recipient">Test-E-Mail abweichend senden (optional)</label>
+        <label for="employee-sender-email">Mitarbeiter-E-Mail fuer Circula (optional)</label>
         <input
-          id="test-email-recipient"
+          id="employee-sender-email"
           type="email"
-          placeholder="leer lassen = gespeicherte Empfaenger verwenden"
+          placeholder="z. B. max.mustermann@firma.de"
         />
         <div class="inline-section">
-          <h3>Buchhaltungssysteme (Platzhalter)</h3>
-          <p class="helper">Diese Auswahl ist derzeit nur sichtbar und wird spaeter mit echten Exporten verknuepft.</p>
+          <h3>Buchhaltungssysteme</h3>
+          <p class="helper">
+            `Circula` ist bereits aktiv und sendet neue Rechnungen an `receipts@in.circula.com`.
+            Alle anderen Ziele sind aktuell nur Platzhalter und im UI entsprechend markiert.
+          </p>
           <div id="accounting-options" class="pill-grid"></div>
         </div>
         <div class="button-row">
@@ -124,149 +124,44 @@ Debug: If actions update the wrong user, inspect the active session and the `/ap
         <div class="section-head">
           <div>
             <p class="eyebrow">Tesla Verbindung</p>
-            <h2>Offiziell oder inoffiziell verbinden</h2>
+            <h2>Offiziellen Fleet-Login verwalten</h2>
           </div>
           <div class="inline-pills">
             <span id="tesla-connection-badge" class="soft-pill">Noch nicht verbunden</span>
           </div>
         </div>
         <p id="tesla-connection-help" class="helper">
-          Diese Testversion bietet bewusst zwei Wege an: den offiziellen Fleet-Login fuer ein spaeteres SaaS-Produkt
-          und den inoffiziellen Token-Import fuer Self-Hosted-Tests ohne Fleet-Billing.
+          Der Beta-Test nutzt den offiziellen Tesla-Fleet-Login. Zusaetzliche Debug-Werkzeuge wie der inoffizielle
+          Token-Import liegen bewusst nur im Admin-Menue.
         </p>
-        <div class="connection-tab-list" role="tablist" aria-label="Tesla Authentifizierungswege">
-          <button
-            id="tesla-tab-fleet"
-            class="connection-tab is-active"
-            type="button"
-            role="tab"
-            aria-selected="true"
-            aria-controls="fleet-card"
-            data-connection-tab="fleet"
-          >
-            <span class="connection-tab-copy">
-              <strong>Offizieller Fleet-Login</strong>
-              <small id="fleet-tab-caption">Tesla Fleet API</small>
-            </span>
-            <span id="fleet-status-pill" class="soft-pill">Noch nicht aktiv</span>
-          </button>
-          <button
-            id="tesla-tab-owner"
-            class="connection-tab"
-            type="button"
-            role="tab"
-            aria-selected="false"
-            aria-controls="owner-card"
-            data-connection-tab="owner"
-          >
-            <span class="connection-tab-copy">
-              <strong>Inoffizieller Token-Import</strong>
-              <small id="owner-tab-caption">Refresh-Token oder TeslaPy-Cache</small>
-            </span>
-            <span id="owner-status-pill" class="soft-pill">Bereit</span>
-          </button>
-        </div>
-
-        <div class="connection-panel-stack">
-          <section id="fleet-card" class="connection-card connection-panel" role="tabpanel" aria-labelledby="tesla-tab-fleet">
-            <div class="connection-card-head">
-              <div>
-                <p class="eyebrow">Variante A</p>
-                <h3>Offizieller Fleet-Login</h3>
-              </div>
-            </div>
-            <p class="helper" id="fleet-help-copy">
-              Fuer spaeteren Kundeneinsatz gedacht. Dieser Weg ist der offizielle Tesla-Flow, benoetigt aber Fleet-API-Konfiguration
-              und kann Tesla-seitige Kosten verursachen.
-            </p>
-            <div class="checkpoint-list compact-checkpoints">
-              <div class="checkpoint-item is-done">Sauberer SaaS-Login fuer Endkunden</div>
-              <div class="checkpoint-item is-next">Tesla Fleet API und Billing koennen noetig sein</div>
-            </div>
-            <div class="button-row">
-              <button id="connect-tesla-oauth" class="primary" type="button">Offiziell mit Tesla verbinden</button>
-            </div>
-          </section>
-
-          <section
-            id="owner-card"
-            class="connection-card connection-panel"
-            role="tabpanel"
-            aria-labelledby="tesla-tab-owner"
-            hidden
-          >
-            <div class="connection-card-head">
-              <div>
-                <p class="eyebrow">Variante B</p>
-                <h3>Inoffizieller Token-Import</h3>
-              </div>
-            </div>
-            <p class="helper" id="owner-help-copy">
-              Fuer Self-Hosted- und Technik-Tests ohne Fleet-Billing. Dafuer brauchst du manuell ein Refresh-Token oder eine TeslaPy-/tesla_ha-Cache-Datei.
-            </p>
-            <label for="tesla-account-email">Tesla Konto E-Mail</label>
-            <input id="tesla-account-email" type="email" placeholder="z. B. dein.tesla.konto@example.com" />
-            <label for="tesla-cache-json">TeslaPy / tesla_ha cache.json (optional)</label>
-            <textarea
-              id="tesla-cache-json"
-              placeholder='Kompletten JSON-Inhalt einfuegen, z. B. {"dein@email.de": {"url": "...", "sso": {...}}}'
-            ></textarea>
-            <div class="form-grid-two">
-              <div>
-                <label for="tesla-refresh-token">Refresh-Token</label>
-                <input id="tesla-refresh-token" type="password" placeholder="Tesla Refresh-Token" />
-              </div>
-              <div>
-                <label for="tesla-access-token">Access-Token (optional)</label>
-                <input id="tesla-access-token" type="password" placeholder="Tesla Access-Token" />
-              </div>
-            </div>
-            <p class="helper">
-              Die Tokens werden nur gespeichert und validiert. Nach erfolgreichem Speichern leert das Dashboard die Eingabefelder wieder.
-            </p>
-            <div class="button-row">
-              <button id="connect-tesla" class="secondary" type="button">Inoffiziellen Zugang speichern</button>
-            </div>
-          </section>
-        </div>
-
-        <section class="tesla-preference-panel">
-          <div class="section-head section-head-compact">
+        <section id="fleet-card" class="connection-card connection-panel">
+          <div class="connection-card-head">
             <div>
-              <h3>Bevorzugter Live-Weg</h3>
-              <p class="helper">
-                Wenn beide Varianten hinterlegt sind, steuert diese Auswahl, welche Verbindung fuer neue VINs und Live-Syncs bevorzugt wird.
-              </p>
+              <p class="eyebrow">Fleet Login</p>
+              <h3>Offizieller Fleet-Login</h3>
             </div>
-            <button id="save-tesla-preference" class="secondary" type="button">Bevorzugten Weg speichern</button>
+            <span id="fleet-status-pill" class="soft-pill">Noch nicht aktiv</span>
           </div>
-          <div class="radio-card-grid">
-            <label class="radio-card">
-              <input id="preferred-mode-auto" type="radio" name="preferred-live-mode" value="auto" checked />
-              <span>
-                <strong>Automatisch</strong>
-                <small>Fleet wird bevorzugt, wenn er vorhanden ist.</small>
-              </span>
-            </label>
-            <label class="radio-card">
-              <input id="preferred-mode-fleet" type="radio" name="preferred-live-mode" value="fleet_oauth" />
-              <span>
-                <strong>Fleet API</strong>
-                <small>Nutze bevorzugt den offiziellen Tesla-Login.</small>
-              </span>
-            </label>
-            <label class="radio-card">
-              <input id="preferred-mode-owner" type="radio" name="preferred-live-mode" value="owner_api" />
-              <span>
-                <strong>Inoffizieller Weg</strong>
-                <small>Bevorzuge den Token-Import fuer Self-Hosted-Tests.</small>
-              </span>
-            </label>
+          <p class="helper" id="fleet-help-copy">
+            Fuer spaeteren Kundeneinsatz gedacht. Dieser Weg ist der offizielle Tesla-Flow, benoetigt aber Fleet-API-Konfiguration
+            und kann Tesla-seitige Kosten verursachen.
+          </p>
+          <div class="checkpoint-list compact-checkpoints">
+            <div class="checkpoint-item is-done">Sauberer SaaS-Login fuer Endkunden</div>
+            <div class="checkpoint-item is-next">Tesla Fleet API und Billing koennen noetig sein</div>
           </div>
+          <div class="button-row">
+            <button id="connect-tesla-oauth" class="primary" type="button">Offiziell mit Tesla verbinden</button>
+          </div>
+          {% if is_admin %}
+            <p class="helper">
+              Betreiberhinweis: Inoffizieller Token-Import, manuelle VINs und Test-E-Mail-Overrides liegen im Admin-Menue unter `Debug`.
+            </p>
+          {% endif %}
         </section>
         <div id="tesla-error-box" class="notice error" hidden></div>
         <div class="button-row">
-          <button id="run-sync" class="secondary" type="button">Sync ausloesen</button>
+          <button id="run-sync" class="secondary" type="button">Fleet-Sync ausloesen</button>
         </div>
       </article>
 
@@ -277,18 +172,16 @@ Debug: If actions update the wrong user, inspect the active session and the `/ap
           <table>
           <thead>
             <tr>
-              <th>Invoice ID</th>
               <th>Zeitpunkt</th>
               <th>Fahrzeug</th>
               <th>Standort</th>
               <th>Betrag</th>
-              <th>Quelle</th>
               <th>Aktion</th>
             </tr>
           </thead>
           <tbody id="invoice-body">
             <tr>
-              <td colspan="7">Noch keine Rechnungen vorhanden. Fuehre zuerst einen Sync aus.</td>
+              <td colspan="5">Noch keine Rechnungen vorhanden. Fuehre zuerst einen Sync aus.</td>
             </tr>
           </tbody>
           </table>

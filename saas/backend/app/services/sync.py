@@ -30,6 +30,8 @@ from app.tesla_modes import mode_label, select_live_account
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
+IMPLEMENTED_ACCOUNTING_TARGETS = {"Circula"}
+CIRCULA_RECEIPT_ADDRESS = "receipts@in.circula.com"
 
 
 @dataclass
@@ -128,6 +130,7 @@ class InvoiceSyncService:
             attachments = [invoice.pdf_path for invoice in created_invoices if email_settings.attach_pdf]
             delivery_mode = self.runtime_services.emailer.send_summary(recipients, subject, body, attachments)
             emailed_recipients = recipients
+            self._deliver_accounting_exports(user, email_settings, created_invoices)
 
         logger.info(
             "Invoice sync finished for %s: mode=%s created=%s skipped=%s emailed=%s delivery_mode=%s",
@@ -144,6 +147,34 @@ class InvoiceSyncService:
             emailed_recipients=emailed_recipients,
             delivery_mode=delivery_mode,
             sync_mode=sync_mode,
+        )
+
+    def _deliver_accounting_exports(self, user: User, email_settings: EmailSetting, created_invoices: list[Invoice]) -> None:
+        selected_targets = {
+            item.strip() for item in (email_settings.accounting_targets_csv or "").split(",") if item.strip()
+        }
+        if "Circula" not in selected_targets or not created_invoices:
+            return
+
+        if not email_settings.employee_sender_email:
+            raise ValueError(
+                "Circula ist aktiviert, aber es fehlt die Mitarbeiter-Absenderadresse. "
+                "Bitte in den Versand-Einstellungen `Mitarbeiter-E-Mail fuer Circula` setzen."
+            )
+
+        attachments = [invoice.pdf_path for invoice in created_invoices if email_settings.attach_pdf]
+        if not attachments:
+            return
+
+        self.runtime_services.emailer.send_message(
+            recipients=[CIRCULA_RECEIPT_ADDRESS],
+            subject=f"Tesla-Rechnungen fuer Circula - {user.email}",
+            body=(
+                "Automatischer Tesla-Rechnungsversand fuer Circula. "
+                "Die angehaengten PDFs stammen aus dem aktuellen Tesla-Sync."
+            ),
+            attachment_paths=attachments,
+            from_email=email_settings.employee_sender_email,
         )
 
     def sync_all_users(self) -> list[tuple[str, SyncSummary]]:

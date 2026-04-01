@@ -35,13 +35,30 @@ class DeliveryEmailService:
     def smtp_configured(self) -> bool:
         return bool(self.smtp_host)
 
-    def send_summary(self, recipients: list[str], subject: str, body: str, attachment_paths: list[str]) -> str:
-        return self.send_message(recipients, subject, body, attachment_paths)
+    def send_summary(
+        self,
+        recipients: list[str],
+        subject: str,
+        body: str,
+        attachment_paths: list[str],
+        *,
+        from_email: str | None = None,
+    ) -> str:
+        return self.send_message(recipients, subject, body, attachment_paths, from_email=from_email)
 
-    def send_message(self, recipients: list[str], subject: str, body: str, attachment_paths: list[str]) -> str:
+    def send_message(
+        self,
+        recipients: list[str],
+        subject: str,
+        body: str,
+        attachment_paths: list[str],
+        *,
+        from_email: str | None = None,
+    ) -> str:
+        effective_from_email = from_email or self.default_from_email
         timestamp = datetime.now(timezone.utc).isoformat()
         record = (
-            f"[{timestamp}] from={self.default_from_email} "
+            f"[{timestamp}] from={effective_from_email} "
             f"to={','.join(recipients)} subject={subject!r} "
             f"attachments={attachment_paths!r} body={body!r}\n"
         )
@@ -60,7 +77,7 @@ class DeliveryEmailService:
             return "outbox"
 
         message = EmailMessage()
-        message["From"] = self.default_from_email
+        message["From"] = effective_from_email
         message["To"] = ", ".join(recipients)
         message["Subject"] = subject
         message.set_content(body)

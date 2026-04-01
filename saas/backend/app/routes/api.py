@@ -45,7 +45,13 @@ from app.services.emailer import DeliveryEmailService
 from app.services.tesla_fleet import TeslaFleetApiClient, build_tesla_authorization_request, tesla_oauth_available
 from app.services.tesla_partner import TeslaPartnerAdminService
 from app.services.storage import LocalFileStorage
-from app.services.sync import InvoiceSyncService, RuntimeServices, ensure_email_settings, serialize_invoice
+from app.services.sync import (
+    IMPLEMENTED_ACCOUNTING_TARGETS,
+    InvoiceSyncService,
+    RuntimeServices,
+    ensure_email_settings,
+    serialize_invoice,
+)
 from app.services.tesla import DemoTeslaClient, get_preferred_user_account, get_tesla_account_by_mode, upsert_vehicle_for_account
 from app.services.tesla_owner import (
     DEFAULT_DEVICE_COUNTRY,
@@ -61,7 +67,7 @@ from app.token_store import encrypt_secret
 
 router = APIRouter(prefix="/api/v1", tags=["api"])
 settings = get_settings()
-AVAILABLE_ACCOUNTING_TARGETS = ["DATEV", "Lexoffice", "sevDesk", "Paperless", "Dropbox", "Google Drive"]
+AVAILABLE_ACCOUNTING_TARGETS = ["Circula", "DATEV", "Lexoffice", "sevDesk", "Paperless", "Dropbox", "Google Drive"]
 TESLA_OAUTH_STATE_SESSION_KEY = "tesla_oauth_state"
 partner_admin_service = TeslaPartnerAdminService(settings)
 
@@ -171,8 +177,10 @@ def _serialize_current_user(db: Session, user: User) -> CurrentUserResponse:
             user.email_settings.subject_template if user.email_settings else "Neue Tesla-Rechnungen fuer {email}"
         ),
         attach_pdf=user.email_settings.attach_pdf if user.email_settings else True,
+        employee_sender_email=user.email_settings.employee_sender_email if user.email_settings else None,
         accounting_targets=accounting_targets,
         available_accounting_targets=AVAILABLE_ACCOUNTING_TARGETS,
+        implemented_accounting_targets=sorted(IMPLEMENTED_ACCOUNTING_TARGETS),
         vehicles=[
             VehicleResponse(
                 id=vehicle.id,
@@ -279,6 +287,7 @@ def fleet_admin_status(request: Request, db: Session = Depends(get_db_session)) 
         app_domain=status.app_domain,
         callback_url=status.callback_url,
         fleet_api_base_url=status.fleet_api_base_url,
+        sync_interval_seconds=settings.sync_interval_seconds,
         oauth_ready=status.oauth_ready,
         register_ready=status.register_ready,
         public_key_url=status.public_key_url,
@@ -579,6 +588,7 @@ def save_email_settings(
     email_settings.recipients_csv = ",".join(payload.recipients)
     email_settings.subject_template = payload.subject_template
     email_settings.attach_pdf = payload.attach_pdf
+    email_settings.employee_sender_email = payload.employee_sender_email
     email_settings.accounting_targets_csv = ",".join(
         target for target in payload.accounting_targets if target in AVAILABLE_ACCOUNTING_TARGETS
     )

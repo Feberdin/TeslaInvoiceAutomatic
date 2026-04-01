@@ -106,7 +106,11 @@ def admin_page(request: Request, db: Session = Depends(get_db_session)) -> HTMLR
     )
 
 
-@router.get("/.well-known/appspecific/com.tesla.3p.public-key.pem", response_class=PlainTextResponse)
+@router.api_route(
+    "/.well-known/appspecific/com.tesla.3p.public-key.pem",
+    methods=["GET", "HEAD"],
+    response_class=PlainTextResponse,
+)
 def tesla_public_key() -> PlainTextResponse:
     public_key_pem = partner_admin_service.public_key_pem()
     if not public_key_pem:

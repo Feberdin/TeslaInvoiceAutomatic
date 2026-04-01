@@ -45,11 +45,27 @@ class EmailSettingsRequest(BaseModel):
     subject_template: str = Field(default="Neue Tesla-Rechnungen für {email}", min_length=5, max_length=255)
     attach_pdf: bool = True
     accounting_targets: list[str] = Field(default_factory=list)
+    employee_sender_email: str | None = None
 
     @field_validator("recipients")
     @classmethod
     def validate_recipients(cls, value: list[str]) -> list[str]:
         return validate_recipient_list(value)
+
+    @field_validator("employee_sender_email")
+    @classmethod
+    def validate_optional_employee_sender_email(cls, value: str | None) -> str | None:
+        if value is None or not value.strip():
+            return None
+        return validate_email_address(value)
+
+    @model_validator(mode="after")
+    def validate_circula_sender_requirement(self) -> "EmailSettingsRequest":
+        if "Circula" in self.accounting_targets and not self.employee_sender_email:
+            raise ValueError(
+                "Fuer Circula wird eine Mitarbeiter-Absenderadresse benoetigt, damit die Belege korrekt zugeordnet werden."
+            )
+        return self
 
 
 class VehicleCreateRequest(BaseModel):
@@ -176,8 +192,10 @@ class CurrentUserResponse(BaseModel):
     smtp_configured: bool
     subject_template: str
     attach_pdf: bool
+    employee_sender_email: str | None
     accounting_targets: list[str]
     available_accounting_targets: list[str]
+    implemented_accounting_targets: list[str]
     vehicles: list[VehicleResponse]
     active_sync_mode: str
     demo_mode_enabled: bool
@@ -199,6 +217,7 @@ class FleetAdminStatusResponse(BaseModel):
     app_domain: str
     callback_url: str
     fleet_api_base_url: str
+    sync_interval_seconds: int
     oauth_ready: bool
     register_ready: bool
     public_key_url: str

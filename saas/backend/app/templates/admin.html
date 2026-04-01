@@ -59,6 +59,7 @@ Debug: If the Fleet login keeps failing with 412, inspect the status badges, the
         <div class="status-grid">
           <div class="metric"><span>App-Domain</span><strong id="admin-app-domain">-</strong></div>
           <div class="metric"><span>Fleet API</span><strong id="admin-fleet-base">-</strong></div>
+          <div class="metric"><span>Hintergrundsync</span><strong id="admin-sync-interval">-</strong></div>
           <div class="metric"><span>Key-Status</span><strong id="admin-key-status">-</strong></div>
           <div class="metric"><span>Letzter Verify</span><strong id="admin-verify-status">-</strong></div>
         </div>
@@ -99,6 +100,90 @@ Debug: If the Fleet login keeps failing with 412, inspect the status badges, the
           Der Register-Button nutzt dein Tesla Client Secret serverseitig, holt einen Partner-Token und ruft den Tesla-Register-Endpunkt
           fuer die eingestellte Region auf. Der private Schluessel bleibt im `/data`-Volume und wird nie im Browser angezeigt.
         </p>
+      </article>
+
+      <article class="panel">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Debug</p>
+            <h2>Beta-Werkzeuge fuer Betreiber</h2>
+          </div>
+          <div class="inline-pills">
+            <span id="admin-owner-import-pill" class="soft-pill">Owner-Debug wird geladen</span>
+          </div>
+        </div>
+        <p class="helper">
+          Diese Werkzeuge sind bewusst nur fuer Betreiber sichtbar. Hier kannst du Beta-Tests vorbereiten, ohne das normale Endkunden-Dashboard zu ueberladen.
+        </p>
+
+        <div class="debug-grid">
+          <section class="debug-card">
+            <p class="eyebrow">Test-E-Mail</p>
+            <h3>Abweichende Testadresse</h3>
+            <label for="debug-test-email-override">Test-E-Mail abweichend senden (optional)</label>
+            <input
+              id="debug-test-email-override"
+              type="email"
+              placeholder="leer lassen = gespeicherte Empfaenger verwenden"
+            />
+            <p class="helper">
+              Praktisch fuer Beta-Tests, wenn du einzelne Zustellwege pruefen willst, ohne die normalen Empfaenger zu ueberschreiben.
+            </p>
+            <div class="button-row">
+              <button id="debug-send-test-email-button" class="secondary" type="button">Testmail senden</button>
+            </div>
+          </section>
+
+          <section class="debug-card">
+            <p class="eyebrow">VIN Debug</p>
+            <h3>Fahrzeuge hinterlegen</h3>
+            <div class="form-grid-two">
+              <div>
+                <label for="debug-vin">VIN</label>
+                <input id="debug-vin" type="text" placeholder="z. B. LRW..." />
+              </div>
+              <div>
+                <label for="debug-vin-nickname">Bezeichnung</label>
+                <input id="debug-vin-nickname" type="text" placeholder="z. B. Model Y Geschaeftswagen" />
+              </div>
+            </div>
+            <div class="button-row">
+              <button id="debug-add-vehicle-button" class="secondary" type="button">VIN speichern</button>
+            </div>
+            <p class="helper">
+              Das normale Dashboard zeigt Beta-seitig nur die registrierten VINs an. Manuelle Eingriffe und Loeschaktionen bleiben hier im Debug-Menue.
+            </p>
+            <div id="debug-vehicle-list" class="stack compact-stack"></div>
+          </section>
+
+          <section class="debug-card">
+            <p class="eyebrow">Owner Import</p>
+            <h3>Inoffiziellen Token-Import</h3>
+            <label for="debug-owner-email">Tesla Konto E-Mail</label>
+            <input id="debug-owner-email" type="email" placeholder="z. B. dein.tesla.konto@example.com" />
+            <label for="debug-owner-cache-json">TeslaPy / tesla_ha cache.json (optional)</label>
+            <textarea
+              id="debug-owner-cache-json"
+              placeholder='Kompletten JSON-Inhalt einfuegen, z. B. {"dein@email.de": {"url": "...", "sso": {...}}}'
+            ></textarea>
+            <div class="form-grid-two">
+              <div>
+                <label for="debug-owner-refresh-token">Refresh-Token</label>
+                <input id="debug-owner-refresh-token" type="text" placeholder="Tesla Refresh-Token" />
+              </div>
+              <div>
+                <label for="debug-owner-access-token">Access-Token (optional)</label>
+                <input id="debug-owner-access-token" type="text" placeholder="Tesla Access-Token" />
+              </div>
+            </div>
+            <p id="debug-owner-import-help" class="helper">
+              Dieser Import bleibt fuer Self-Hosted-Debug und Vergleichstests verfuegbar, falls du Beta-Faelle ohne Fleet-Billing nachvollziehen willst.
+            </p>
+            <div class="button-row">
+              <button id="debug-owner-connect-button" class="secondary" type="button">Inoffiziellen Zugang speichern</button>
+            </div>
+          </section>
+        </div>
       </article>
 
       <article class="panel">

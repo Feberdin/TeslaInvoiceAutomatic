@@ -13,9 +13,9 @@ Im kombinierten Repository liegt der eigentliche Anwendungscode unter `saas/`.
 - VIN-Verwaltung, Testmail und Rechnungsarchiv
 - offizieller Tesla-Fleet-Login fuer Endkunden
 - inoffizieller Tesla-Token-Import fuer Self-Hosted-Tests ohne Fleet-Billing
-- separates Admin-Menue fuer Betreiber mit Fleet-Public-Key und Partner-Register-Button
+- separates Admin-Menue fuer Betreiber mit Fleet-Public-Key, Partner-Register-Button und Debug-Werkzeugen
 - Demo-Fallback, falls noch kein echter Tesla-Zugang verbunden ist
-- bevorzugter Live-Weg, falls beide Varianten gespeichert sind
+- Circula als erster einfacher Buchhaltungsversand
 
 ## Wichtiger Hinweis
 
@@ -45,6 +45,8 @@ Ohne veroeffentlichtes Image kann Unraid zwar das Template sehen, aber den Conta
   `/mnt/cache/appdata/tesla-invoice-automatic-saas -> /data`
 - Pflichtvariablen:
   `APP_BASE_URL`, `SECRET_KEY`, `DATABASE_URL`, `DATA_DIR`, `DEMO_MODE`, `DEFAULT_FROM_EMAIL`
+- Hintergrundsync:
+  `SYNC_INTERVAL_MINUTES` bevorzugt, `SYNC_INTERVAL_SECONDS` nur als Fallback
 - Betreiber-Menue:
   `ADMIN_EMAILS`
 - Fuer beide Tesla-Varianten:
@@ -59,13 +61,13 @@ Ohne veroeffentlichtes Image kann Unraid zwar das Template sehen, aber den Conta
 1. App installieren und starten
 2. `/auth` oeffnen
 3. Konto registrieren
-4. im Dashboard offiziellen Fleet-Login oder inoffiziellen Token-Import waehlen
-5. eine VIN hinterlegen
-6. optional den bevorzugten Live-Weg speichern
-7. Empfaenger speichern
+4. im Dashboard offiziellen Fleet-Login starten
+5. Empfaenger speichern und optional `Circula` aktivieren
+6. falls Betreiber: `/admin` oeffnen fuer Testmail-Override, manuelle VINs und inoffiziellen Token-Import
+7. eine VIN pruefen
 8. `Testrechnung senden` pruefen
-9. falls Betreiber: `/admin` oeffnen, Fleet-Public-Key erzeugen und Partner-Status pruefen
-10. `Fleet-Sync`, `Token-Sync` oder `Demo-Sync` ausloesen
+9. falls Betreiber: Fleet-Public-Key erzeugen und Partner-Status pruefen
+10. `Fleet-Sync` oder `Demo-Sync` ausloesen
 11. Logs, PDFs und `email-outbox.log` kontrollieren
 
 ## Debug-Hinweise

@@ -53,7 +53,11 @@ def run_worker_cycle() -> int:
 def run_worker_loop(stop_event: Event | None = None) -> None:
     Path(settings.data_dir).mkdir(parents=True, exist_ok=True)
     create_database()
-    logger.info("Worker started with interval=%s seconds", settings.sync_interval_seconds)
+    logger.info(
+        "Worker started with interval=%s seconds (~%s minutes)",
+        settings.sync_interval_seconds,
+        round(settings.sync_interval_seconds / 60, 2),
+    )
 
     while stop_event is None or not stop_event.is_set():
         run_worker_cycle()

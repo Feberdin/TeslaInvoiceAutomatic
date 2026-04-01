@@ -584,6 +584,29 @@ input[type="checkbox"] {
   border: 1px solid rgba(24, 34, 47, 0.08);
 }
 
+.pill-option-copy {
+  display: grid;
+  gap: 2px;
+}
+
+.pill-option-copy strong {
+  font-size: 0.94rem;
+}
+
+.pill-option-copy small {
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.pill-option-live {
+  border-color: rgba(15, 122, 82, 0.18);
+}
+
+.pill-option-placeholder {
+  border-style: dashed;
+  border-color: rgba(182, 120, 22, 0.22);
+}
+
 .list-item {
   display: flex;
   justify-content: space-between;
@@ -678,6 +701,25 @@ table {
 
 .detail-card small {
   margin-top: 4px;
+}
+
+.debug-grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  margin-top: 18px;
+}
+
+.debug-card {
+  padding: 20px;
+  border-radius: 20px;
+  background: var(--surface);
+  border: 1px solid rgba(24, 34, 47, 0.08);
+}
+
+.debug-card h3 {
+  font-size: 1.16rem;
+  margin-bottom: 12px;
 }
 
 .code-block {

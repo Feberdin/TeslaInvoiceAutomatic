@@ -1,16 +1,13 @@
-/* Purpose: Drive the authenticated dashboard for VINs, Tesla connection variants, recipients, invoice sync and SMTP tests.
-Input/Output: Reads the current session from the backend, updates the UI and triggers user actions through the JSON API.
-Invariants: Every request relies on the session cookie, users can see both Tesla connection variants side by side, and the preferred live mode stays explicit.
-Debug: If actions fail or the wrong Tesla source is selected, inspect `/api/v1/me`, the visible badges and the current preferred live mode first. */
+/* Purpose: Drive the authenticated dashboard for the Fleet beta flow, delivery settings and invoice archive.
+Input/Output: Reads `/api/v1/me` plus `/api/v1/invoices`, renders the current account state and triggers JSON API actions.
+Invariants: The dashboard stays session-bound, only shows registered VINs, and keeps manual debug tools inside the operator menu.
+Debug: If the page looks inconsistent after a backend change, inspect `/api/v1/me`, `/api/v1/invoices`, query notices and the visible Fleet status badges first. */
 
 let currentProfile = null;
-let currentConnectionTab = "fleet";
-const CONNECTION_TAB_STORAGE_KEY = "tesla-auth-connection-tab";
 
 const MODE_LABELS = {
-  auto: "Automatisch",
   fleet_oauth: "Fleet API",
-  owner_api: "Inoffizieller Token-Import",
+  owner_api: "Inoffizieller Import",
   demo: "Demo-Fallback",
   none: "Noch offen",
 };
@@ -21,66 +18,6 @@ function isLiveMode(mode) {
 
 function modeLabel(mode) {
   return MODE_LABELS[mode] || "Tesla";
-}
-
-function preferredModeExplanation(mode) {
-  if (mode === "fleet_oauth") {
-    return "Fleet API";
-  }
-  if (mode === "owner_api") {
-    return "in den inoffiziellen Token-Import";
-  }
-  return "automatisch zuerst in die Fleet API und faellt sonst auf den inoffiziellen Token-Import zurueck";
-}
-
-function isConnectedMode(profile, mode) {
-  return Array.isArray(profile?.connected_tesla_modes) && profile.connected_tesla_modes.includes(mode);
-}
-
-function preferredConnectionTab(profile) {
-  const savedTab = window.localStorage.getItem(CONNECTION_TAB_STORAGE_KEY);
-  if (savedTab === "fleet" || savedTab === "owner") {
-    return savedTab;
-  }
-  if (isConnectedMode(profile, "fleet_oauth")) {
-    return "fleet";
-  }
-  if (isConnectedMode(profile, "owner_api")) {
-    return "owner";
-  }
-  if (profile?.tesla_oauth_available) {
-    return "fleet";
-  }
-  return "owner";
-}
-
-function setConnectionTab(tabName) {
-  currentConnectionTab = tabName === "owner" ? "owner" : "fleet";
-  window.localStorage.setItem(CONNECTION_TAB_STORAGE_KEY, currentConnectionTab);
-
-  const fleetTab = document.getElementById("tesla-tab-fleet");
-  const ownerTab = document.getElementById("tesla-tab-owner");
-  const fleetCard = document.getElementById("fleet-card");
-  const ownerCard = document.getElementById("owner-card");
-
-  const fleetActive = currentConnectionTab === "fleet";
-  fleetTab.classList.toggle("is-active", fleetActive);
-  ownerTab.classList.toggle("is-active", !fleetActive);
-  fleetTab.setAttribute("aria-selected", fleetActive ? "true" : "false");
-  ownerTab.setAttribute("aria-selected", fleetActive ? "false" : "true");
-  fleetCard.hidden = !fleetActive;
-  ownerCard.hidden = fleetActive;
-}
-
-function currentPreferredMode() {
-  return document.querySelector('input[name="preferred-live-mode"]:checked')?.value || "auto";
-}
-
-function setPreferredMode(mode) {
-  const radio = document.querySelector(`input[name="preferred-live-mode"][value="${mode}"]`);
-  if (radio) {
-    radio.checked = true;
-  }
 }
 
 function extractErrorMessage(payload) {
@@ -174,16 +111,21 @@ function currentAccountingTargets() {
   return Array.from(document.querySelectorAll('input[name="accounting-target"]:checked')).map((input) => input.value);
 }
 
-function renderAccountingOptions(availableTargets, selectedTargets) {
+function renderAccountingOptions(availableTargets, selectedTargets, implementedTargets) {
   const container = document.getElementById("accounting-options");
   container.innerHTML = "";
+  const implemented = new Set(implementedTargets);
 
   for (const target of availableTargets) {
+    const isImplemented = implemented.has(target);
     const wrapper = document.createElement("label");
-    wrapper.className = "pill-option";
+    wrapper.className = `pill-option ${isImplemented ? "pill-option-live" : "pill-option-placeholder"}`;
     wrapper.innerHTML = `
       <input type="checkbox" name="accounting-target" value="${target}" ${selectedTargets.includes(target) ? "checked" : ""} />
-      <span>${target}</span>
+      <span class="pill-option-copy">
+        <strong>${target}</strong>
+        <small>${isImplemented ? "Bereits aktiv" : "Noch nicht implementiert"}</small>
+      </span>
     `;
     container.appendChild(wrapper);
   }
@@ -194,7 +136,7 @@ function renderVehicles(vehicles) {
   container.innerHTML = "";
 
   if (!vehicles.length) {
-    container.innerHTML = '<p class="helper">Noch keine VIN gespeichert.</p>';
+    container.innerHTML = '<p class="helper">Noch keine VIN registriert. Verbinde zuerst Tesla oder nutze das Admin-Menue fuer Debug-VINs.</p>';
     return;
   }
 
@@ -210,14 +152,9 @@ function renderVehicles(vehicles) {
           <span class="mini-tag ${liveVehicle ? "tag-live" : "tag-demo"}">${modeLabel(vehicle.account_mode)}</span>
         </div>
       </div>
-      <button class="secondary small-button" type="button" data-delete-vehicle="${vehicle.id}">Entfernen</button>
     `;
     container.appendChild(card);
   }
-
-  container.querySelectorAll("[data-delete-vehicle]").forEach((button) => {
-    button.addEventListener("click", () => deleteVehicle(Number(button.dataset.deleteVehicle)));
-  });
 }
 
 function renderInvoices(invoices) {
@@ -225,323 +162,217 @@ function renderInvoices(invoices) {
   body.innerHTML = "";
 
   if (!invoices.length) {
-    body.innerHTML = '<tr><td colspan="7">Noch keine Rechnungen vorhanden. Fuehre zuerst einen Sync aus.</td></tr>';
+    body.innerHTML = '<tr><td colspan="5">Noch keine Rechnungen vorhanden. Fuehre zuerst einen Sync aus.</td></tr>';
     return;
   }
 
   for (const invoice of invoices) {
-    const liveInvoice = isLiveMode(invoice.source);
     const amountLabel = invoice.amount > 0 ? `${invoice.amount.toFixed(2)} ${invoice.currency}` : `unbekannt (${invoice.currency})`;
     const row = document.createElement("tr");
     row.innerHTML = `
-      <td>${invoice.invoice_id}</td>
       <td>${new Date(invoice.charge_started_at).toLocaleString("de-DE")}</td>
       <td>${invoice.vehicle_name}</td>
       <td>${invoice.location}</td>
       <td>${amountLabel}</td>
-      <td><span class="mini-tag ${liveInvoice ? "tag-live" : "tag-demo"}">${modeLabel(invoice.source)}</span></td>
       <td><a class="button-link secondary" href="${invoice.pdf_download_url}">PDF laden</a></td>
     `;
     body.appendChild(row);
   }
 }
 
+function applyFleetTexts(profile) {
+  const activeMode = profile.active_sync_mode;
+  const fleetConnected = activeMode === "fleet_oauth";
+  const ownerConnected = activeMode === "owner_api";
+  const demoActive = activeMode === "demo";
+
+  const accountTeslaPill = document.getElementById("account-tesla-pill");
+  const dashboardModeChip = document.getElementById("dashboard-mode-chip");
+  const teslaModeTitle = document.getElementById("tesla-mode-title");
+  const teslaModeBody = document.getElementById("tesla-mode-body");
+  const nextStep = document.getElementById("tesla-mode-next-step");
+  const connectionBadge = document.getElementById("tesla-connection-badge");
+  const fleetStatusPill = document.getElementById("fleet-status-pill");
+  const fleetHelpCopy = document.getElementById("fleet-help-copy");
+  const connectionHelp = document.getElementById("tesla-connection-help");
+  const connectButton = document.getElementById("connect-tesla-oauth");
+  const syncButton = document.getElementById("run-sync");
+
+  if (fleetConnected) {
+    accountTeslaPill.textContent = "Aktiv: Fleet API";
+    dashboardModeChip.textContent = "Fleet API aktiv";
+    dashboardModeChip.className = "status-chip ok";
+    teslaModeTitle.textContent = "Aktuell echte Rechnungen ueber Fleet API";
+    teslaModeBody.textContent =
+      "Der offizielle Tesla-Fleet-Login ist aktiv. Neue Syncs ziehen echte Charging-History und vorhandene Tesla-PDF-Rechnungen fuer deine verbundenen VINs.";
+    nextStep.textContent = "Naechster Schritt: Live-Sync ausloesen und eingegangene PDFs im Archiv pruefen";
+    connectionBadge.textContent = "Verbunden: Fleet API";
+    fleetStatusPill.textContent = "Verbunden";
+    fleetHelpCopy.textContent =
+      "Dieser offizielle Weg ist bereits verbunden und eignet sich fuer den Beta-Test sowie fuer spaeteren SaaS-Betrieb mit Endkunden-Login.";
+    connectionHelp.textContent =
+      "Der Beta-Test nutzt den offiziellen Tesla-Fleet-Login. Zusaetzliche Debug-Werkzeuge wie der inoffizielle Token-Import liegen bewusst nur im Admin-Menue.";
+    connectButton.textContent = "Fleet erneut verbinden";
+    connectButton.disabled = !profile.tesla_oauth_available;
+    syncButton.textContent = "Fleet-Sync ausloesen";
+    return;
+  }
+
+  if (ownerConnected) {
+    accountTeslaPill.textContent = "Aktiv: Inoffizieller Import";
+    dashboardModeChip.textContent = "Inoffizieller Import aktiv";
+    dashboardModeChip.className = "status-chip ok";
+    teslaModeTitle.textContent = "Aktuell echte Rechnungen ueber inoffiziellen Import";
+    teslaModeBody.textContent =
+      "Ein inoffizieller Tesla-Token-Import ist verbunden. Fuer den Beta-Test kannst du damit ebenfalls echte Rechnungen laden, auch wenn der Fleet-Flow gerade nicht genutzt wird.";
+    nextStep.textContent = "Naechster Schritt: Live-Sync ausloesen und danach das PDF-Archiv pruefen";
+    connectionBadge.textContent = "Live-Zugang aktiv";
+    fleetStatusPill.textContent = profile.tesla_oauth_available ? "Fleet verfuegbar" : "Fleet nicht verfuegbar";
+    fleetHelpCopy.textContent =
+      "Der Fleet-Login ist auf dieser Installation verfuegbar, aktuell aber nicht der aktive Live-Weg. Fuer Owner-Debug-Werkzeuge nutze das Admin-Menue.";
+    connectionHelp.textContent =
+      "Der Beta-Test bevorzugt Fleet API, kann aber bei Bedarf ueber das Admin-Menue auch mit dem inoffiziellen Import debuggt werden.";
+    connectButton.textContent = "Offiziell mit Tesla verbinden";
+    connectButton.disabled = !profile.tesla_oauth_available;
+    syncButton.textContent = "Live-Sync ausloesen";
+    return;
+  }
+
+  if (demoActive) {
+    accountTeslaPill.textContent = "Demo-Fallback aktiv";
+    dashboardModeChip.textContent = "Demo-Fallback verfuegbar";
+    dashboardModeChip.className = "status-chip muted";
+    teslaModeTitle.textContent = "Aktuell Demo-Rechnungen als Fallback";
+    teslaModeBody.textContent =
+      "Noch ist kein echter Live-Weg aktiv. Solange `DEMO_MODE=true` gesetzt ist, kannst du den Versand- und Archivfluss weiterhin mit Demo-Rechnungen pruefen.";
+    nextStep.textContent = "Naechster Schritt: Offiziellen Fleet-Login verbinden und danach Live-Sync ausloesen";
+    connectionBadge.textContent = "Noch nicht verbunden";
+    fleetStatusPill.textContent = profile.tesla_oauth_available ? "Fleet bereit" : "Fleet fehlt";
+    fleetHelpCopy.textContent =
+      "Fuer spaeteren Kundeneinsatz gedacht. Dieser Weg ist der offizielle Tesla-Flow, benoetigt aber Fleet-API-Konfiguration und kann Tesla-seitige Kosten verursachen.";
+    connectionHelp.textContent =
+      "Der Beta-Test nutzt den offiziellen Tesla-Fleet-Login. Zusaetzliche Debug-Werkzeuge wie der inoffizielle Token-Import liegen bewusst nur im Admin-Menue.";
+    connectButton.textContent = "Offiziell mit Tesla verbinden";
+    connectButton.disabled = !profile.tesla_oauth_available;
+    syncButton.textContent = "Demo-Sync ausloesen";
+    return;
+  }
+
+  accountTeslaPill.textContent = "Tesla noch offen";
+  dashboardModeChip.textContent = "Tesla noch nicht verbunden";
+  dashboardModeChip.className = "status-chip muted";
+  teslaModeTitle.textContent = "Bitte Tesla verbinden";
+  teslaModeBody.textContent =
+    "Der offizielle Fleet-Login ist der empfohlene Beta-Weg. Ohne verbundenes Tesla-Konto bleibt nur der lokale Demo-Fallback oder das Admin-Debug-Menue.";
+  nextStep.textContent = "Als naechster Schritt: Tesla-Zugang verbinden und Live-Sync ausloesen";
+  connectionBadge.textContent = "Noch nicht verbunden";
+  fleetStatusPill.textContent = profile.tesla_oauth_available ? "Fleet bereit" : "Fleet nicht konfiguriert";
+  fleetHelpCopy.textContent =
+    "Fuer spaeteren Kundeneinsatz gedacht. Dieser Weg ist der offizielle Tesla-Flow, benoetigt aber Fleet-API-Konfiguration und kann Tesla-seitige Kosten verursachen.";
+  connectionHelp.textContent =
+    "Der Beta-Test nutzt den offiziellen Tesla-Fleet-Login. Zusaetzliche Debug-Werkzeuge wie der inoffizielle Token-Import liegen bewusst nur im Admin-Menue.";
+  connectButton.textContent = "Offiziell mit Tesla verbinden";
+  connectButton.disabled = !profile.tesla_oauth_available;
+  syncButton.textContent = "Sync ausloesen";
+}
+
 function applyProfile(profile) {
   currentProfile = profile;
 
-  const activeMode = profile.active_sync_mode;
-  const liveMode = isLiveMode(activeMode);
-  const oauthReady = profile.tesla_oauth_available;
-  const ownerImportReady = profile.tesla_owner_import_available;
-  const fleetConnected = isConnectedMode(profile, "fleet_oauth");
-  const ownerConnected = isConnectedMode(profile, "owner_api");
-  const preferredMode = profile.preferred_live_sync_mode || "auto";
-
   document.getElementById("current-email").textContent = profile.email;
-  const adminEntry = document.getElementById("admin-entry");
-  const adminLink = document.getElementById("admin-link");
-  adminEntry.hidden = !profile.is_admin;
-  if (profile.is_admin && profile.admin_path) {
-    adminLink.href = profile.admin_path;
-  }
   document.getElementById("metric-vehicles").textContent = String(profile.vehicle_count);
   document.getElementById("metric-invoices").textContent = String(profile.invoice_count);
   document.getElementById("metric-sync").textContent = profile.last_synced_at
     ? new Date(profile.last_synced_at).toLocaleString("de-DE")
     : "noch nie";
-  document.getElementById("metric-delivery").textContent = profile.smtp_configured ? "SMTP aktiv" : "Outbox";
-  document.getElementById("metric-source").textContent = modeLabel(activeMode);
+  document.getElementById("metric-source").textContent = modeLabel(profile.active_sync_mode);
+  document.getElementById("metric-delivery").textContent = profile.smtp_configured ? "SMTP aktiv" : "Outbox aktiv";
 
-  document.getElementById("account-delivery-pill").textContent = profile.smtp_configured ? "SMTP aktiv" : "Outbox aktiv";
-  document.getElementById("account-tesla-pill").textContent = liveMode
-    ? `Aktiv: ${modeLabel(activeMode)}`
-    : profile.demo_mode_enabled
-      ? "Demo-Fallback aktiv"
-      : "Kein Tesla-Zugang";
-
-  document.getElementById("dashboard-mode-chip").textContent = liveMode
-    ? `${modeLabel(activeMode)} aktiv`
-    : profile.demo_mode_enabled
-      ? "Demo-Fallback verfuegbar"
-      : "Tesla-Verbindung erforderlich";
-
-  const connectedLabels = profile.connected_tesla_modes.map((mode) => modeLabel(mode));
-  document.getElementById("tesla-connection-badge").textContent = connectedLabels.length
-    ? `Verbunden: ${connectedLabels.join(" + ")}`
-    : oauthReady
-      ? "Fleet bereit"
-      : ownerImportReady
-        ? "Token-Import bereit"
-        : "Noch nicht verbunden";
-
-  document.getElementById("tesla-account-email").value = profile.tesla_account_email || "";
-  setPreferredMode(preferredMode);
-
-  const modeTitle = activeMode === "fleet_oauth"
-    ? "Aktuell echte Rechnungen ueber Fleet API"
-    : activeMode === "owner_api"
-      ? "Aktuell echte Rechnungen ueber Token-Import"
-      : profile.demo_mode_enabled
-        ? "Aktuell Demo-Rechnungen als Fallback"
-        : "Bitte Tesla verbinden";
-  const modeBody = activeMode === "fleet_oauth"
-    ? "Der offizielle Tesla-Fleet-Login ist aktiv. Neue Syncs ziehen echte Charging-History und vorhandene Tesla-PDF-Rechnungen fuer deine verbundenen VINs."
-    : activeMode === "owner_api"
-      ? "Der inoffizielle Token-Import ist aktiv. Neue Syncs laufen ohne Fleet-Billing, koennen aber Tesla-seitig weniger stabil sein."
-      : profile.demo_mode_enabled
-        ? "Solange kein echter Tesla-Zugang verbunden ist, bleibt der komplette Versand- und Archivfluss ueber Demo-Rechnungen testbar."
-        : "Der Demo-Fallback ist deaktiviert. Verbinde jetzt einen Tesla-Zugang und speichere anschliessend deine echten VINs.";
-  const nextStep = activeMode === "fleet_oauth" || activeMode === "owner_api"
-    ? "Naechster Schritt: Live-Sync ausloesen und eingegangene PDFs im Archiv pruefen"
-    : oauthReady
-      ? "Naechster Schritt: offiziellen Fleet-Login oder Token-Import verbinden und danach Live-Sync ausloesen"
-      : "Naechster Schritt: inoffiziellen Token-Import nutzen oder Fleet-Zugang beim Betreiber aktivieren";
-
-  document.getElementById("tesla-mode-title").textContent = modeTitle;
-  document.getElementById("tesla-mode-body").textContent = modeBody;
-  document.getElementById("tesla-mode-next-step").textContent = nextStep;
-  document.getElementById("dashboard-lead").textContent = liveMode
-    ? `Dein Konto ist fuer echte Tesla-Daten vorbereitet. Aktuell laeuft der Live-Weg ueber ${modeLabel(activeMode)}.`
-    : "Du testest aktuell den kompletten Nutzer- und Versandfluss fuer dein SaaS-Projekt: Registrierung, VIN-Verwaltung, E-Mail-Versand, PDF-Archiv und zwei Tesla-Verbindungswege.";
-
-  document.getElementById("run-sync").textContent = activeMode === "fleet_oauth"
-    ? "Fleet-Sync ausloesen"
-    : activeMode === "owner_api"
-      ? "Token-Sync ausloesen"
-      : "Demo-Sync ausloesen";
-
-  let connectionHelp = "Noch keine Tesla-Verbindung gespeichert.";
-  if (fleetConnected && ownerConnected) {
-    connectionHelp = `Beide Tesla-Wege sind verbunden. Dein Konto bevorzugt aktuell ${preferredModeExplanation(preferredMode)}.`;
-  } else if (fleetConnected) {
-    connectionHelp = "Der offizielle Fleet-Login ist verbunden. Du kannst jetzt Live-Syncs fuer echte Rechnungen ausloesen.";
-  } else if (ownerConnected) {
-    connectionHelp = "Der inoffizielle Token-Import ist verbunden. Du kannst jetzt Live-Syncs ohne Fleet-Billing ausloesen.";
-  } else if (oauthReady && ownerImportReady) {
-    connectionHelp = "Beide Wege sind fuer diese Installation sichtbar: offizieller Fleet-Login und inoffizieller Token-Import.";
-  } else if (oauthReady) {
-    connectionHelp = "Fleet ist vorbereitet. Der inoffizielle Token-Import ist auf dieser Installation deaktiviert.";
-  } else if (ownerImportReady) {
-    connectionHelp = "Fleet ist noch nicht konfiguriert. Fuer echte Rechnungen kannst du den inoffiziellen Token-Import verwenden.";
-  }
-  document.getElementById("tesla-connection-help").textContent = connectionHelp;
-
-  const oauthButton = document.getElementById("connect-tesla-oauth");
-  oauthButton.disabled = !oauthReady;
-  oauthButton.textContent = fleetConnected ? "Fleet erneut verbinden" : "Offiziell mit Tesla verbinden";
-
-  const fleetStatusPill = document.getElementById("fleet-status-pill");
-  fleetStatusPill.textContent = fleetConnected ? "Verbunden" : oauthReady ? "Bereit" : "Nicht konfiguriert";
-  document.getElementById("fleet-tab-caption").textContent = fleetConnected
-    ? "Verbunden und fuer Live-Sync bereit"
-    : oauthReady
-      ? "Tesla Fleet API"
-      : "Client ID, Secret und Callback fehlen";
-  document.getElementById("fleet-help-copy").textContent = fleetConnected
-    ? "Dieser offizielle Weg ist bereits verbunden und eignet sich fuer einen spaeteren SaaS-Betrieb mit Endkunden-Login."
-    : oauthReady
-      ? "Fleet ist konfiguriert. Dieser Weg ist fuer ein spaeteres Produkt am saubersten, kann aber Tesla-seitige Kosten verursachen."
-      : "Fleet ist auf dieser Installation noch nicht vollstaendig konfiguriert. Es fehlen Betreiberdaten wie Client ID, Secret oder die richtige Callback-URL.";
-
-  const ownerCard = document.getElementById("owner-card");
-  const ownerStatusPill = document.getElementById("owner-status-pill");
-  ownerStatusPill.textContent = ownerConnected ? "Verbunden" : ownerImportReady ? "Bereit" : "Deaktiviert";
-  document.getElementById("owner-tab-caption").textContent = ownerConnected
-    ? "Verbunden und fuer Live-Sync bereit"
-    : ownerImportReady
-      ? "Refresh-Token oder TeslaPy-Cache"
-      : "Vom Betreiber deaktiviert";
-  document.getElementById("owner-help-copy").textContent = ownerConnected
-    ? "Dieser inoffizielle Weg ist bereits verbunden und eignet sich gut fuer Self-Hosted-Tests ohne Fleet-Billing."
-    : ownerImportReady
-      ? "Dieser Weg bleibt fuer technische Nutzer sichtbar. Du brauchst dafuer ein Tesla Refresh-Token oder einen TeslaPy-/tesla_ha-Cache."
-      : "Der inoffizielle Token-Import ist auf dieser Installation deaktiviert.";
-  ownerCard.classList.toggle("card-disabled", !ownerImportReady && !ownerConnected);
-
-  setConnectionTab(preferredConnectionTab(profile));
-
-  for (const radio of document.querySelectorAll('input[name="preferred-live-mode"]')) {
-    const value = radio.value;
-    if (value === "fleet_oauth") {
-      radio.disabled = !oauthReady && !fleetConnected;
-    } else if (value === "owner_api") {
-      radio.disabled = !ownerImportReady && !ownerConnected;
-    } else {
-      radio.disabled = false;
-    }
-  }
-
-  showTeslaError(profile.tesla_last_error || "");
   document.getElementById("recipients").value = profile.email_recipients.join(", ");
   document.getElementById("subject-template").value = profile.subject_template;
   document.getElementById("attach-pdf").checked = profile.attach_pdf;
-  renderAccountingOptions(profile.available_accounting_targets, profile.accounting_targets);
+  document.getElementById("employee-sender-email").value = profile.employee_sender_email || "";
+
+  document.getElementById("account-delivery-pill").textContent = profile.smtp_configured ? "SMTP aktiv" : "Outbox aktiv";
+  renderAccountingOptions(
+    profile.available_accounting_targets,
+    profile.accounting_targets,
+    profile.implemented_accounting_targets || []
+  );
   renderVehicles(profile.vehicles);
+  applyFleetTexts(profile);
+  showTeslaError(profile.tesla_last_error || "");
+
+  const adminEntry = document.getElementById("admin-entry");
+  adminEntry.hidden = !profile.is_admin;
+  if (profile.is_admin && profile.admin_path) {
+    document.getElementById("admin-link").href = profile.admin_path;
+  }
 }
 
 async function refreshDashboard() {
-  const profile = await apiRequest("/api/v1/me");
+  const [profile, invoices] = await Promise.all([apiRequest("/api/v1/me"), apiRequest("/api/v1/invoices")]);
   applyProfile(profile);
-  const invoices = await apiRequest("/api/v1/invoices");
   renderInvoices(invoices);
 }
 
-function startTeslaOAuth() {
+async function logout() {
+  await apiRequest("/api/v1/auth/logout", { method: "POST", body: JSON.stringify({}) });
+  window.location.href = "/auth";
+}
+
+async function saveSettings() {
+  const payload = {
+    recipients: currentRecipients(),
+    subject_template: document.getElementById("subject-template").value.trim(),
+    attach_pdf: document.getElementById("attach-pdf").checked,
+    accounting_targets: currentAccountingTargets(),
+    employee_sender_email: document.getElementById("employee-sender-email").value.trim() || null,
+  };
+  const result = await apiRequest("/api/v1/settings/email", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+  showNotice(result.message);
+  await refreshDashboard();
+}
+
+async function sendTestEmail() {
+  const result = await apiRequest("/api/v1/email/test", {
+    method: "POST",
+    body: JSON.stringify({ recipient_override: null }),
+  });
+  showNotice(
+    `Testmail wurde verarbeitet. Modus: ${result.delivery_mode}. Empfaenger: ${(result.recipients || []).join(", ") || "keine"}.`
+  );
+}
+
+function connectTeslaOauth() {
   if (!currentProfile?.tesla_oauth_available || !currentProfile?.tesla_oauth_start_path) {
-    const message =
-      "Der offizielle Fleet-Login ist fuer diese Installation noch nicht konfiguriert. Bitte zuerst `ENABLE_TESLA_FLEET_OAUTH=true`, Client ID, Client Secret und die korrekte Callback-URL setzen.";
-    showTeslaError(message);
-    showNotice(message, "error");
+    showNotice(
+      "Fleet OAuth ist auf dieser Installation noch nicht vollstaendig konfiguriert. Bitte zuerst die Betreiber-Einstellungen pruefen.",
+      "error"
+    );
     return;
   }
   window.location.href = currentProfile.tesla_oauth_start_path;
 }
 
-async function connectTeslaManually() {
-  showTeslaError("");
-  const payload = await apiRequest("/api/v1/tesla/connect", {
-    method: "POST",
-    body: JSON.stringify({
-      tesla_account_email: document.getElementById("tesla-account-email").value,
-      cache_json: document.getElementById("tesla-cache-json").value.trim() || null,
-      refresh_token: document.getElementById("tesla-refresh-token").value.trim() || null,
-      access_token: document.getElementById("tesla-access-token").value.trim() || null,
-    }),
-  });
-
-  document.getElementById("tesla-cache-json").value = "";
-  document.getElementById("tesla-refresh-token").value = "";
-  document.getElementById("tesla-access-token").value = "";
-  showNotice(payload.message);
-  await refreshDashboard();
-}
-
-async function addVehicle() {
-  await apiRequest("/api/v1/vehicles", {
-    method: "POST",
-    body: JSON.stringify({
-      vin: document.getElementById("vehicle-vin").value,
-      nickname: document.getElementById("vehicle-nickname").value,
-    }),
-  });
-  document.getElementById("vehicle-vin").value = "";
-  document.getElementById("vehicle-nickname").value = "";
-  showNotice("VIN wurde gespeichert.");
-  await refreshDashboard();
-}
-
-async function deleteVehicle(vehicleId) {
-  await apiRequest(`/api/v1/vehicles/${vehicleId}`, { method: "DELETE" });
-  showNotice("VIN wurde entfernt.");
-  await refreshDashboard();
-}
-
-async function saveSettings() {
-  await apiRequest("/api/v1/settings/email", {
-    method: "POST",
-    body: JSON.stringify({
-      recipients: currentRecipients(),
-      subject_template: document.getElementById("subject-template").value,
-      attach_pdf: document.getElementById("attach-pdf").checked,
-      accounting_targets: currentAccountingTargets(),
-    }),
-  });
-  showNotice("Einstellungen wurden gespeichert.");
-  await refreshDashboard();
-}
-
-async function saveTeslaPreference() {
-  const payload = await apiRequest("/api/v1/settings/tesla-mode", {
-    method: "POST",
-    body: JSON.stringify({
-      preferred_live_sync_mode: currentPreferredMode(),
-    }),
-  });
-  showNotice(payload.message);
-  await refreshDashboard();
-}
-
-async function sendTestEmail() {
-  const recipientOverride = document.getElementById("test-email-recipient").value.trim();
-  const payload = await apiRequest("/api/v1/email/test", {
-    method: "POST",
-    body: JSON.stringify({
-      recipient_override: recipientOverride || null,
-    }),
-  });
-  showNotice(
-    payload.delivery_mode === "smtp"
-      ? `Testrechnung wurde per SMTP an ${payload.recipients.join(", ")} versendet.`
-      : `Testrechnung wurde fuer ${payload.recipients.join(", ")} im Outbox-Log protokolliert. Fuer echten Versand bitte SMTP setzen.`
-  );
-}
-
 async function runSync() {
-  const payload = await apiRequest("/api/v1/sync/run", {
+  const includeFreshDemoInvoice = !currentProfile?.tesla_connected && Boolean(currentProfile?.demo_mode_enabled);
+  const result = await apiRequest("/api/v1/sync/run", {
     method: "POST",
-    body: JSON.stringify({
-      include_fresh_demo_invoice: !isLiveMode(currentProfile?.active_sync_mode),
-    }),
+    body: JSON.stringify({ include_fresh_demo_invoice: includeFreshDemoInvoice }),
   });
-
-  const deliveryText =
-    payload.delivery_mode === "smtp"
-      ? " Versand lief per SMTP."
-      : payload.delivery_mode === "outbox"
-        ? " Versand wurde nur im Outbox-Log protokolliert."
-        : "";
   showNotice(
-    `${modeLabel(payload.sync_mode)} erfolgreich: ${payload.created_count} neue Rechnung(en), ${payload.skipped_count} bereits bekannt.${deliveryText}`
+    `Sync erfolgreich. Neu: ${result.created_count}, uebersprungen: ${result.skipped_count}, Versand: ${result.delivery_mode}.`
   );
   await refreshDashboard();
-}
-
-async function logout() {
-  await apiRequest("/api/v1/auth/logout", { method: "POST" });
-  window.location.href = "/auth";
 }
 
 document.addEventListener("DOMContentLoaded", async () => {
-  consumeQueryNotices();
-
   document.getElementById("logout-button").addEventListener("click", () =>
     logout().catch((error) => showNotice(error.message, "error"))
-  );
-  document.getElementById("connect-tesla-oauth").addEventListener("click", () => startTeslaOAuth());
-  document.getElementById("connect-tesla").addEventListener("click", () =>
-    connectTeslaManually().catch((error) => {
-      showTeslaError(error.message);
-      showNotice(error.message, "error");
-    })
-  );
-  document.querySelectorAll("[data-connection-tab]").forEach((button) => {
-    button.addEventListener("click", () => setConnectionTab(button.dataset.connectionTab));
-  });
-  document.getElementById("save-tesla-preference").addEventListener("click", () =>
-    saveTeslaPreference().catch((error) => showNotice(error.message, "error"))
-  );
-  document.getElementById("add-vehicle").addEventListener("click", () =>
-    addVehicle().catch((error) => showNotice(error.message, "error"))
   );
   document.getElementById("save-settings").addEventListener("click", () =>
     saveSettings().catch((error) => showNotice(error.message, "error"))
@@ -549,12 +380,12 @@ document.addEventListener("DOMContentLoaded", async () => {
   document.getElementById("send-test-email").addEventListener("click", () =>
     sendTestEmail().catch((error) => showNotice(error.message, "error"))
   );
+  document.getElementById("connect-tesla-oauth").addEventListener("click", connectTeslaOauth);
   document.getElementById("run-sync").addEventListener("click", () =>
-    runSync().catch((error) => {
-      showTeslaError(error.message);
-      showNotice(error.message, "error");
-    })
+    runSync().catch((error) => showNotice(error.message, "error"))
   );
+
+  consumeQueryNotices();
 
   try {
     await refreshDashboard();

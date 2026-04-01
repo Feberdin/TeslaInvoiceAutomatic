@@ -9,8 +9,9 @@ Diese Version ist ein Docker-first Teststand fuer Unraid und lokale Docker-Umgeb
 - Betreiber koennen im separaten Admin-Menue den Tesla-Fleet-Public-Key erzeugen und die Partner-App registrieren
 - Empfaenger fuer Rechnungen speichern
 - Testrechnung per SMTP oder Outbox pruefen
+- Circula als erstes echtes Buchhaltungsziel per E-Mail bedienen
 - Demo- oder Live-Rechnungen erzeugen, archivieren und herunterladen
-- Buchhaltungssysteme vorerst als sichtbare Platzhalter auswaehlen
+- weitere Buchhaltungssysteme als klar markierte Platzhalter sehen
 
 Wichtig: Diese Build-Stufe unterstuetzt bewusst beide Varianten parallel. Der Fleet-Weg ist der offizielle SaaS-Pfad, der inoffizielle Token-Import ist der praktische Self-Hosted-Weg ohne Fleet-Billing. `DEMO_MODE=true` bleibt als sicherer Fallback sinnvoll, bis mindestens eine echte Tesla-Verbindung vorhanden ist.
 
@@ -20,13 +21,13 @@ Wichtig: Diese Build-Stufe unterstuetzt bewusst beide Varianten parallel. Der Fl
 2. Session-Cookies halten den angemeldeten Nutzer im Browser, damit VINs und Rechnungen nicht ueber E-Mail-Felder verwechselt werden.
 3. Pro Nutzer koennen mehrere VINs gespeichert werden.
 4. Ein offizieller Tesla-Fleet-Client startet den OAuth-Login, tauscht den Callback-Code gegen Tokens und ruft pro VIN echte Charging-Invoices ab.
-5. Ein inoffizieller Owner-Token-/Cache-Import bleibt als Self-Hosted-Weg ohne Fleet-Billing verfuegbar.
-6. Nutzer koennen festlegen, welcher Live-Weg bevorzugt werden soll, falls beide Varianten gespeichert sind.
-7. Betreiber koennen im separaten Admin-Menue den Tesla-Fleet-Public-Key erzeugen, unter `/.well-known/...` ausliefern und den Tesla-Partner-Register-Call fuer die Region ausloesen.
+5. Ein inoffizieller Owner-Token-/Cache-Import bleibt als Self-Hosted-Weg ohne Fleet-Billing verfuegbar, liegt fuer Beta-Tests aber nur im Admin-Debug-Menue.
+6. Betreiber koennen im separaten Admin-Menue den Tesla-Fleet-Public-Key erzeugen, unter `/.well-known/...` ausliefern und den Tesla-Partner-Register-Call fuer die Region ausloesen.
+7. Der Hintergrundsync laeuft ueber einen konfigurierbaren Docker-/Unraid-Intervall (`SYNC_INTERVAL_MINUTES` bevorzugt `SYNC_INTERVAL_SECONDS`).
 8. Wenn kein echter Tesla-Zugang verbunden ist, erzeugt der Demo-Tesla-Adapter pro VIN nachvollziehbare Test-Rechnungen.
 9. Rechnungen landen im Datenverzeichnis und im Dashboard-Archiv.
 10. E-Mails gehen entweder ueber echten SMTP oder nachvollziehbar in `email-outbox.log`.
-11. Buchhaltungssysteme sind bereits als UI-Platzhalter vorhanden, aber noch ohne echten Export.
+11. Circula ist als erster einfacher Buchhaltungsweg implementiert. Weitere Ziele bleiben sichtbar, aber klar als noch nicht umgesetzt markiert.
 
 ## Annahmen
 
@@ -43,12 +44,12 @@ Wichtig: Diese Build-Stufe unterstuetzt bewusst beide Varianten parallel. Der Fl
 - mehrere VINs pro Nutzer
 - offizieller Tesla-Fleet-Login direkt aus dem Dashboard
 - separates Admin-Menue fuer Betreiber mit Public-Key-Status, Partner-Register-Button und Tesla-Verify
-- inoffizieller Tesla-Owner-Import ueber Refresh-Token oder TeslaPy-/tesla_ha-`cache.json`
-- bevorzugter Live-Weg pro Nutzer, falls beide Varianten parallel hinterlegt sind
+- Admin-Debug mit manueller VIN-Anlage, Testmail-Override und inoffiziellem Tesla-Owner-Import ueber Refresh-Token oder TeslaPy-/tesla_ha-`cache.json`
 - gespeicherte Versandempfaenger pro Nutzer
-- Testrechnung an gespeicherte oder abweichende Test-Adresse
+- Testrechnung an gespeicherte Empfaenger im Dashboard plus abweichende Test-Adresse im Admin-Debug
 - Live-Sync fuer echte Tesla-Rechnungen oder Demo-Sync als Fallback
 - PDF-Download aus dem Archiv
+- Circula-Versand ueber `receipts@in.circula.com` mit Mitarbeiter-Absenderadresse
 - sichtbare Platzhalter fuer DATEV, Lexoffice, sevDesk, Paperless, Dropbox und Google Drive
 - DEBUG/INFO/WARNING/ERROR Logging fuer API, Worker und Mailpfad
 
@@ -165,6 +166,7 @@ SMTP_USE_TLS=true
 SMTP_USE_SSL=false
 DEFAULT_FROM_EMAIL=no-reply@example.com
 SECRET_KEY=bitte-einen-langen-zufaelligen-wert-setzen
+SYNC_INTERVAL_MINUTES=30
 ENABLE_TESLA_FLEET_OAUTH=true
 ENABLE_TESLA_OWNER_IMPORT=true
 ADMIN_EMAILS=admin@example.com
@@ -190,14 +192,19 @@ http://localhost:8000
 
 1. `/auth` oeffnen oder auf der Startseite `Registrieren / Login` klicken
 2. neues Konto registrieren
-3. im Dashboard zwischen `Offiziell mit Tesla verbinden` und `Inoffiziellen Zugang speichern` waehlen
-4. eine oder mehrere VINs hinterlegen
-5. Versandempfaenger speichern
-6. optional Test-E-Mail-Adresse eintragen
-7. `Testrechnung senden` klicken
-8. optional den bevorzugten Live-Weg speichern
-9. `Fleet-Sync`, `Token-Sync` oder `Demo-Sync` ausloesen
-10. PDFs im Archiv herunterladen
+3. im Dashboard `Offiziell mit Tesla verbinden` nutzen
+4. Versandempfaenger speichern
+5. optional `Circula` aktivieren und eine Mitarbeiter-Absenderadresse hinterlegen
+6. `Testrechnung senden` klicken
+7. `Fleet-Sync ausloesen`
+8. PDFs im Archiv herunterladen
+
+Beta-Debug nur fuer Betreiber:
+
+1. `/admin` oeffnen
+2. dort bei Bedarf eine abweichende Test-E-Mail senden
+3. manuelle VINs anlegen oder entfernen
+4. den inoffiziellen Tesla-Import fuer Vergleichstests nutzen
 
 ## Tesla Fleet Admin-Menue
 
@@ -217,18 +224,17 @@ Das Admin-Menue ist fuer den Betreiber gedacht. Endkunden brauchen diesen Schrit
 Es gibt aktuell zwei Wege:
 
 1. Offizieller Tesla-Login ueber Fleet API
-   Der empfohlene Weg fuer ein spaeteres Produkt. Setze als Betreiber `ENABLE_TESLA_FLEET_OAUTH=true`, `TESLA_CLIENT_ID`, `TESLA_CLIENT_SECRET` und die passende `TESLA_FLEET_API_BASE_URL`. Danach klicken Endkunden im Dashboard auf `Offiziell mit Tesla verbinden`.
+   Der empfohlene Weg fuer den ersten Beta-Test. Setze als Betreiber `ENABLE_TESLA_FLEET_OAUTH=true`, `TESLA_CLIENT_ID`, `TESLA_CLIENT_SECRET` und die passende `TESLA_FLEET_API_BASE_URL`. Danach klicken Endkunden im Dashboard auf `Offiziell mit Tesla verbinden`.
 
 2. Inoffizieller Token-Import ohne Fleet-Billing
-   Der praktische Weg fuer Self-Hosted-Tests. Setze `ENABLE_TESLA_OWNER_IMPORT=true` und trage im Dashboard eine Tesla-Konto-E-Mail plus Refresh-Token oder TeslaPy-/tesla_ha-Cache ein.
+   Der praktische Weg fuer Self-Hosted-Tests. Setze `ENABLE_TESLA_OWNER_IMPORT=true` und trage im Admin-Debug eine Tesla-Konto-E-Mail plus Refresh-Token oder TeslaPy-/tesla_ha-Cache ein.
 
 Danach:
 
 1. echte VIN speichern
 2. den gewuenschten Tesla-Weg verbinden
-3. optional den bevorzugten Live-Weg speichern
-4. `Fleet-Sync` oder `Token-Sync` ausloesen
-5. Rechnungs-PDFs im Archiv oder Maileingang pruefen
+3. `Fleet-Sync` oder den Debug-Import ausloesen
+4. Rechnungs-PDFs im Archiv oder Maileingang pruefen
 
 ## E-Mail-Test: Was passiert genau?
 
@@ -237,7 +243,21 @@ Danach:
 - Mit SMTP:
   Die Testrechnung und die Sync-Zusammenfassung werden an den konfigurierten Mailserver uebergeben.
 - Mit abweichender Testadresse:
-  Im Dashboard kannst du einmalig eine andere Zieladresse fuer den Testversand angeben, ohne die dauerhaft gespeicherten Empfaenger zu ersetzen.
+  Im Admin-Debug kannst du einmalig eine andere Zieladresse fuer den Testversand angeben, ohne die dauerhaft gespeicherten Empfaenger zu ersetzen.
+
+## Circula
+
+Circula ist als erster einfacher Buchhaltungsweg bereits umgesetzt:
+
+1. aktiviere `Circula` in den Versand-Einstellungen
+2. trage die Mitarbeiter-E-Mail ein, die bei Circula dem Beleg zugeordnet werden soll
+3. der Sync sendet neue Rechnungs-PDFs zusaetzlich an `receipts@in.circula.com`
+
+Wichtig:
+
+- Die Mitarbeiter-E-Mail wird als Absender verwendet.
+- Wenn `Circula` aktiv ist, aber keine Mitarbeiter-E-Mail hinterlegt wurde, blockiert die Validierung den Speichervorgang bewusst frueh.
+- Die anderen Buchhaltungsziele bleiben sichtbar, sind aber noch nicht implementiert.
 
 ## Unraid als App
 
@@ -252,6 +272,7 @@ Wichtige Variablen in Unraid:
 - `DATABASE_URL`
 - `DATA_DIR`
 - `DEMO_MODE=true`
+- `SYNC_INTERVAL_MINUTES`
 - `LOG_LEVEL`
 - `DEFAULT_FROM_EMAIL`
 - `ENABLE_TESLA_FLEET_OAUTH`
@@ -271,6 +292,18 @@ Wichtige Variablen in Unraid:
 - `SMTP_USE_SSL`
 
 Details stehen in [unraid/README.md](./unraid/README.md).
+
+## Sync-Intervall fuer den Beta-Test
+
+- `SYNC_INTERVAL_MINUTES` ist der bevorzugte Regler fuer Docker und Unraid.
+- Wenn `SYNC_INTERVAL_MINUTES` groesser als `0` ist, wird `SYNC_INTERVAL_SECONDS` ignoriert.
+- Beispiel:
+
+```env
+SYNC_INTERVAL_MINUTES=30
+```
+
+Das sorgt fuer einen automatischen Abruf alle 30 Minuten.
 
 ## Tests lokal ausfuehren
 

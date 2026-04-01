@@ -82,6 +82,8 @@ def _run_lightweight_migrations() -> None:
         email_columns = {column["name"] for column in inspector.get_columns("email_settings")}
         if "accounting_targets_csv" not in email_columns:
             statements.append("ALTER TABLE email_settings ADD COLUMN accounting_targets_csv TEXT DEFAULT ''")
+        if "employee_sender_email" not in email_columns:
+            statements.append("ALTER TABLE email_settings ADD COLUMN employee_sender_email VARCHAR(255)")
 
     if "tesla_accounts" in table_names:
         account_columns = {column["name"] for column in inspector.get_columns("tesla_accounts")}

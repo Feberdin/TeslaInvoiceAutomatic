@@ -65,6 +65,12 @@ def get_settings() -> Settings:
     redirect_path = os.getenv("TESLA_OAUTH_REDIRECT_PATH", "/api/v1/tesla/oauth/callback").strip() or "/api/v1/tesla/oauth/callback"
     if not redirect_path.startswith("/"):
         redirect_path = f"/{redirect_path}"
+    sync_interval_minutes = max(int(os.getenv("SYNC_INTERVAL_MINUTES", "0") or "0"), 0)
+    sync_interval_seconds = (
+        sync_interval_minutes * 60
+        if sync_interval_minutes > 0
+        else max(int(os.getenv("SYNC_INTERVAL_SECONDS", "1800")), 60)
+    )
 
     return Settings(
         app_name=os.getenv("APP_NAME", "Tesla Invoice Automatic SaaS"),
@@ -75,7 +81,7 @@ def get_settings() -> Settings:
         demo_mode=_read_bool("DEMO_MODE", True),
         database_url=os.getenv("DATABASE_URL", "sqlite:///./data/local_demo.db"),
         data_dir=data_dir,
-        sync_interval_seconds=max(int(os.getenv("SYNC_INTERVAL_SECONDS", "1800")), 60),
+        sync_interval_seconds=sync_interval_seconds,
         default_from_email=os.getenv("DEFAULT_FROM_EMAIL", "no-reply@tesla-invoice-demo.local"),
         demo_user_email=os.getenv("DEMO_USER_EMAIL", "demo@feberdin.local").strip().lower(),
         smtp_host=os.getenv("SMTP_HOST", "").strip(),

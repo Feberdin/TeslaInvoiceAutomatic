@@ -104,6 +104,7 @@ class EmailSetting(Base):
     recipients_csv: Mapped[str] = mapped_column(Text(), default="")
     subject_template: Mapped[str] = mapped_column(String(255), default="Neue Tesla-Rechnungen für {email}")
     accounting_targets_csv: Mapped[str] = mapped_column(Text(), default="")
+    employee_sender_email: Mapped[str | None] = mapped_column(String(255), nullable=True)
     attach_pdf: Mapped[bool] = mapped_column(Boolean(), default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow, onupdate=_utcnow)
