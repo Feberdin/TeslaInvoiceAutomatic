@@ -183,15 +183,17 @@ class TeslaPartnerAdminService:
             )
 
         partner_token = self._request_partner_token()
+        domain = self.app_domain()
         response = self._request(
             method="POST",
             url=f"{self.settings.tesla_fleet_api_base_url}/api/1/partner_accounts",
             headers={
                 "Authorization": f"Bearer {partner_token}",
                 "Accept": "application/json",
+                "Content-Type": "application/json",
                 "User-Agent": "TeslaInvoiceAutomatic/1.1",
             },
-            body=b"",
+            body=json.dumps({"domain": domain}).encode("utf-8"),
             request_label="Tesla partner register",
         )
 
@@ -276,6 +278,22 @@ class TeslaPartnerAdminService:
         if response.status == 404:
             message = (
                 "Tesla kennt fuer diese Domain noch keinen registrierten Public Key. "
+                "Fuehre jetzt den Partner-Register-Button aus und pruefe danach erneut."
+            )
+            self._save_state(
+                {
+                    "last_verify_status": "missing",
+                    "last_verify_message": message,
+                    "last_verify_http_status": response.status,
+                    "last_verify_at": attempt_timestamp,
+                }
+            )
+            return FleetPartnerActionResult(status="missing", message=message, http_status=response.status)
+
+        if response.status == 403:
+            message = (
+                f"Tesla kennt fuer die Domain `{domain}` aktuell noch keinen freigeschalteten Partner-Zugriff. "
+                "Das ist vor dem ersten erfolgreichen Register-Call normal. "
                 "Fuehre jetzt den Partner-Register-Button aus und pruefe danach erneut."
             )
             self._save_state(
