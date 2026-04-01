@@ -1,8 +1,8 @@
 <!--
-Purpose: Provide a low-friction entry point for registration, password login and Google OAuth.
-Input/Output: Captures e-mail/password locally and offers a direct Google hand-off for combined login plus Gmail sending.
-Invariants: First-time users can either start with Google immediately or fall back to local credentials without losing orientation.
-Debug: If login appears to succeed but the dashboard still redirects here, inspect the session cookie, query-string errors and auth API responses.
+Purpose: Provide the production-style entry point for Google OAuth login and Gmail permission hand-off.
+Input/Output: Sends the browser directly into Google OAuth without relying on a frontend build or password forms.
+Invariants: The page stays useful even when JavaScript is disabled because the main CTA is a plain anchor link.
+Debug: If the Google button appears but does not redirect, inspect the rendered `href` and the OAuth config passed from `/auth`.
 -->
 
 {% extends "base.html" %}
@@ -10,15 +10,16 @@ Debug: If login appears to succeed but the dashboard still redirects here, inspe
   <section class="hero auth-hero">
     <article class="panel auth-copy-panel">
       <p class="eyebrow">SaaS Zugang</p>
-      <h1>Eigener Testzugang fuer VINs, Rechnungsmails und echte Tesla-Syncs.</h1>
+      <h1>Mit Google anmelden, Gmail freigeben und echte Tesla-Syncs testen.</h1>
       <p class="lead">
-        Registriere dein Konto, hinterlege deine VINs und teste den Versand der Rechnungen an deine Ziel-E-Mail.
-        Im Dashboard kannst du danach entweder den offiziellen Fleet-Login oder den inoffiziellen Token-Import nutzen,
-        je nachdem ob du SaaS-Login oder Self-Hosted-Tests ohne Fleet-Billing brauchst.
+        Diese Build-Stufe nutzt Google als bevorzugten Login fuer den Beta-Test. Derselbe Google-Account kann
+        gleichzeitig fuer den spaeteren Gmail-Versand freigegeben werden. Im Dashboard verbindest du danach Tesla
+        ueber den offiziellen Fleet-Login oder als Betreiber im Admin-Menue ueber den technischen Token-Import.
       </p>
       <ul class="feature-list">
-        <li class="feature-item"><strong>Heute testbar:</strong> Passwort-Login, Google-Login, VIN-Verwaltung, Testmail, Demo- und Live-Sync.</li>
-        <li class="feature-item"><strong>Live-Tesla:</strong> Offizieller Fleet-Login und inoffizieller Token-Import stehen nebeneinander bereit.</li>
+        <li class="feature-item"><strong>Heute testbar:</strong> Google-Login, VIN-Verwaltung, Testmail, Demo- und Live-Sync.</li>
+        <li class="feature-item"><strong>Login + Mail:</strong> Ein einziger Google-Consent verbindet App-Login und optional den Gmail-Versand.</li>
+        <li class="feature-item"><strong>Live-Tesla:</strong> Offizieller Fleet-Login bleibt der normale Produktweg. Der inoffizielle Token-Import liegt nur noch im Admin-Debug.</li>
         <li class="feature-item"><strong>Google Mail:</strong> Ein Google-Login kann gleichzeitig fuer den spaeteren Gmail-Versand freigegeben werden.</li>
         <li class="feature-item"><strong>Hinweis:</strong> `DEMO_MODE=true` ist als sicherer Fallback sinnvoll, bis dein echter Tesla-Zugang verbunden ist.</li>
       </ul>
@@ -30,37 +31,29 @@ Debug: If login appears to succeed but the dashboard still redirects here, inspe
         <div class="stack auth-google-card">
           <h2>Mit Google starten</h2>
           <p class="helper">
-            Dieser Weg verbindet Login und optional auch den spaeteren Gmail-Versand mit demselben Google-Konto.
+            Dieser Weg verbindet den Login und optional auch den spaeteren Gmail-Versand mit demselben Google-Konto.
           </p>
-          <button
-            id="google-login-button"
-            class="primary"
-            type="button"
-            data-start-path="{{ google_oauth_start_path or '/api/v1/auth/google/start' }}"
+          <a
+            id="google-login-link"
+            class="button-link primary"
+            href="{{ google_oauth_start_path or '/api/v1/auth/google/start' }}"
           >
             Mit Google anmelden und Gmail freigeben
-          </button>
+          </a>
+          <p class="helper">
+            Falls du nach dem Klick nicht weitergeleitet wirst, pruefe im Betreiber-Setup `GOOGLE_CLIENT_ID`,
+            `GOOGLE_CLIENT_SECRET` und die Redirect URI `https://tesla-invoice.feberdin.de/oauth/callback`.
+          </p>
+        </div>
+      {% else %}
+        <div class="stack auth-google-card">
+          <h2>Google OAuth noch nicht bereit</h2>
+          <p class="helper">
+            Auf dieser Installation fehlt aktuell die Google-OAuth-Konfiguration. Bitte in Unraid mindestens
+            `ENABLE_GOOGLE_OAUTH=true`, `GOOGLE_CLIENT_ID` und `GOOGLE_CLIENT_SECRET` setzen.
+          </p>
         </div>
       {% endif %}
-      <div class="auth-grid">
-        <form id="register-form" class="stack auth-form-card">
-          <h2>Registrieren</h2>
-          <label for="register-email">E-Mail</label>
-          <input id="register-email" type="email" placeholder="dein.name@example.com" required />
-          <label for="register-password">Passwort</label>
-          <input id="register-password" type="password" placeholder="mindestens 8 Zeichen" required />
-          <button class="primary" type="submit">Konto erstellen</button>
-        </form>
-
-        <form id="login-form" class="stack auth-form-card">
-          <h2>Login</h2>
-          <label for="login-email">E-Mail</label>
-          <input id="login-email" type="email" placeholder="dein.name@example.com" required />
-          <label for="login-password">Passwort</label>
-          <input id="login-password" type="password" placeholder="dein Passwort" required />
-          <button class="secondary" type="submit">Einloggen</button>
-        </form>
-      </div>
     </aside>
   </section>
   <script src="/static/auth.js"></script>

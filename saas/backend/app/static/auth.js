@@ -1,25 +1,7 @@
-/* Purpose: Handle local registration/login and the Google OAuth hand-off without a frontend build step.
-Input/Output: Sends credentials to the auth API or redirects into Google OAuth and then into the dashboard on success.
-Invariants: Success always means the session cookie is already set by the backend.
-Debug: If the redirect loops back to /auth, inspect the auth API response, query-string errors and browser cookies. */
-
-async function apiRequest(path, options = {}) {
-  const response = await fetch(path, {
-    headers: { "Content-Type": "application/json" },
-    credentials: "same-origin",
-    ...options,
-  });
-
-  const isJson = response.headers.get("content-type")?.includes("application/json");
-  const payload = isJson ? await response.json() : null;
-
-  if (!response.ok) {
-    const message = payload?.detail || payload?.message || "Die Anfrage ist fehlgeschlagen.";
-    throw new Error(message);
-  }
-
-  return payload;
-}
+/* Purpose: Keep the Google-only auth page lightweight and resilient.
+Input/Output: Reads query-string notices and exposes them in the page without owning the actual OAuth redirect.
+Invariants: The primary Google CTA is a normal anchor link, so login still starts even when JavaScript fails.
+Debug: If users loop back to /auth, inspect the query string, rendered Google link and backend cookie/session logs. */
 
 function showNotice(message, type = "info") {
   const target = document.getElementById("notice");
@@ -39,45 +21,8 @@ function consumeQueryNotices() {
 
 document.addEventListener("DOMContentLoaded", () => {
   consumeQueryNotices();
-
-  document.getElementById("register-form").addEventListener("submit", async (event) => {
-    event.preventDefault();
-
-    try {
-      await apiRequest("/api/v1/auth/register", {
-        method: "POST",
-        body: JSON.stringify({
-          email: document.getElementById("register-email").value,
-          password: document.getElementById("register-password").value,
-        }),
-      });
-      window.location.href = "/dashboard";
-    } catch (error) {
-      showNotice(error.message, "error");
-    }
-  });
-
-  document.getElementById("login-form").addEventListener("submit", async (event) => {
-    event.preventDefault();
-
-    try {
-      await apiRequest("/api/v1/auth/login", {
-        method: "POST",
-        body: JSON.stringify({
-          email: document.getElementById("login-email").value,
-          password: document.getElementById("login-password").value,
-        }),
-      });
-      window.location.href = "/dashboard";
-    } catch (error) {
-      showNotice(error.message, "error");
-    }
-  });
-
-  const googleLoginButton = document.getElementById("google-login-button");
-  if (googleLoginButton) {
-    googleLoginButton.addEventListener("click", () => {
-      window.location.href = googleLoginButton.dataset.startPath || "/api/v1/auth/google/start";
-    });
+  const googleLoginLink = document.getElementById("google-login-link");
+  if (googleLoginLink && !googleLoginLink.getAttribute("href")) {
+    googleLoginLink.setAttribute("href", "/api/v1/auth/google/start");
   }
 });
