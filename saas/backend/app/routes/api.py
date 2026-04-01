@@ -17,6 +17,7 @@ from fastapi.responses import FileResponse, RedirectResponse
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
+from app.admin import user_is_admin
 from app.auth import clear_session_user, get_session_user_id, hash_password, set_session_user, verify_password
 from app.config import get_settings
 from app.database import get_db_session
@@ -26,6 +27,8 @@ from app.pdf_utils import generate_demo_invoice_pdf
 from app.schemas import (
     CurrentUserResponse,
     EmailSettingsRequest,
+    FleetAdminStatusResponse,
+    FleetKeyGenerationRequest,
     InvoiceResponse,
     LoginRequest,
     ManualSyncRequest,
@@ -36,9 +39,11 @@ from app.schemas import (
     TestEmailRequest,
     VehicleCreateRequest,
     VehicleResponse,
+    AdminActionResponse,
 )
 from app.services.emailer import DeliveryEmailService
 from app.services.tesla_fleet import TeslaFleetApiClient, build_tesla_authorization_request, tesla_oauth_available
+from app.services.tesla_partner import TeslaPartnerAdminService
 from app.services.storage import LocalFileStorage
 from app.services.sync import InvoiceSyncService, RuntimeServices, ensure_email_settings, serialize_invoice
 from app.services.tesla import DemoTeslaClient, get_preferred_user_account, get_tesla_account_by_mode, upsert_vehicle_for_account
@@ -58,6 +63,7 @@ router = APIRouter(prefix="/api/v1", tags=["api"])
 settings = get_settings()
 AVAILABLE_ACCOUNTING_TARGETS = ["DATEV", "Lexoffice", "sevDesk", "Paperless", "Dropbox", "Google Drive"]
 TESLA_OAUTH_STATE_SESSION_KEY = "tesla_oauth_state"
+partner_admin_service = TeslaPartnerAdminService(settings)
 
 
 def _runtime_services() -> RuntimeServices:
@@ -102,6 +108,20 @@ def _active_sync_account(user: User) -> TeslaAccount | None:
 def _active_sync_mode(user: User) -> str:
     account = _active_sync_account(user)
     return account.mode if account is not None else "none"
+
+
+def _is_admin(user: User) -> bool:
+    return user_is_admin(settings, user.email)
+
+
+def _require_admin_user(request: Request, db: Session) -> User:
+    user = _get_current_user(request, db)
+    if not _is_admin(user):
+        raise HTTPException(
+            status_code=403,
+            detail="Dieses Admin-Menue ist nur fuer Betreiber freigeschaltet. Bitte `ADMIN_EMAILS` pruefen.",
+        )
+    return user
 
 
 def _extract_tesla_profile_email(profile_payload: dict[str, object]) -> str:
@@ -174,6 +194,8 @@ def _serialize_current_user(db: Session, user: User) -> CurrentUserResponse:
         tesla_oauth_available=tesla_oauth_available(settings),
         tesla_oauth_start_path="/api/v1/tesla/oauth/start" if tesla_oauth_available(settings) else None,
         tesla_owner_import_available=settings.enable_tesla_owner_import,
+        is_admin=_is_admin(user),
+        admin_path="/admin" if _is_admin(user) else None,
     )
 
 
@@ -246,6 +268,74 @@ def session_state(request: Request, db: Session = Depends(get_db_session)) -> Se
 def me(request: Request, db: Session = Depends(get_db_session)) -> CurrentUserResponse:
     user = _get_current_user(request, db)
     return _serialize_current_user(db, user)
+
+
+@router.get("/admin/fleet/status", response_model=FleetAdminStatusResponse, summary="Return Tesla Fleet partner setup status for operators")
+def fleet_admin_status(request: Request, db: Session = Depends(get_db_session)) -> FleetAdminStatusResponse:
+    _require_admin_user(request, db)
+    status = partner_admin_service.current_status()
+    return FleetAdminStatusResponse(
+        app_base_url=status.app_base_url,
+        app_domain=status.app_domain,
+        callback_url=status.callback_url,
+        fleet_api_base_url=status.fleet_api_base_url,
+        oauth_ready=status.oauth_ready,
+        register_ready=status.register_ready,
+        public_key_url=status.public_key_url,
+        public_key_present=status.public_key_present,
+        private_key_present=status.private_key_present,
+        public_key_pem=status.public_key_pem,
+        public_key_fingerprint=status.public_key_fingerprint,
+        key_generated_at=status.key_generated_at,
+        partner_token_scope=status.partner_token_scope,
+        last_register_status=status.last_register_status,
+        last_register_message=status.last_register_message,
+        last_register_http_status=status.last_register_http_status,
+        last_register_attempt_at=status.last_register_attempt_at,
+        last_register_success_at=status.last_register_success_at,
+        last_verify_status=status.last_verify_status,
+        last_verify_message=status.last_verify_message,
+        last_verify_http_status=status.last_verify_http_status,
+        last_verify_at=status.last_verify_at,
+    )
+
+
+@router.post("/admin/fleet/keys/generate", response_model=AdminActionResponse, summary="Generate or rotate the Tesla Fleet partner key pair")
+def generate_fleet_keys(
+    payload: FleetKeyGenerationRequest,
+    request: Request,
+    db: Session = Depends(get_db_session),
+) -> AdminActionResponse:
+    _require_admin_user(request, db)
+    try:
+        result = partner_admin_service.generate_key_pair(force=payload.force)
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    return AdminActionResponse(status=result.status, message=result.message, http_status=result.http_status)
+
+
+@router.post("/admin/fleet/register", response_model=AdminActionResponse, summary="Register the Tesla partner app for the configured region")
+def register_fleet_partner(request: Request, db: Session = Depends(get_db_session)) -> AdminActionResponse:
+    _require_admin_user(request, db)
+    try:
+        result = partner_admin_service.register_partner_account()
+    except (ValueError, TeslaAuthenticationError) as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except TeslaApiError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+    return AdminActionResponse(status=result.status, message=result.message, http_status=result.http_status)
+
+
+@router.post("/admin/fleet/verify", response_model=AdminActionResponse, summary="Verify whether Tesla already knows the hosted public key")
+def verify_fleet_partner(request: Request, db: Session = Depends(get_db_session)) -> AdminActionResponse:
+    _require_admin_user(request, db)
+    try:
+        result = partner_admin_service.verify_partner_registration()
+    except (ValueError, TeslaAuthenticationError) as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except TeslaApiError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+    return AdminActionResponse(status=result.status, message=result.message, http_status=result.http_status)
 
 
 @router.get("/tesla/oauth/start", summary="Redirect the logged-in user into Tesla OAuth")

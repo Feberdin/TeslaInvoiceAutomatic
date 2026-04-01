@@ -258,6 +258,12 @@ function applyProfile(profile) {
   const preferredMode = profile.preferred_live_sync_mode || "auto";
 
   document.getElementById("current-email").textContent = profile.email;
+  const adminEntry = document.getElementById("admin-entry");
+  const adminLink = document.getElementById("admin-link");
+  adminEntry.hidden = !profile.is_admin;
+  if (profile.is_admin && profile.admin_path) {
+    adminLink.href = profile.admin_path;
+  }
   document.getElementById("metric-vehicles").textContent = String(profile.vehicle_count);
   document.getElementById("metric-invoices").textContent = String(profile.invoice_count);
   document.getElementById("metric-sync").textContent = profile.last_synced_at

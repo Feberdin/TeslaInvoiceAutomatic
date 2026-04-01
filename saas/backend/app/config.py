@@ -11,6 +11,8 @@ import os
 from dataclasses import dataclass
 from pathlib import Path
 
+from app.utils import validate_email_address
+
 
 @dataclass(frozen=True)
 class Settings:
@@ -38,11 +40,24 @@ class Settings:
     tesla_fleet_api_base_url: str
     tesla_oauth_scope: str
     tesla_oauth_redirect_path: str
+    admin_emails: tuple[str, ...] = ()
+    tesla_partner_token_scope: str = "openid user_data vehicle_device_data vehicle_cmds vehicle_charging_cmds"
 
 
 def _read_bool(name: str, default: bool) -> bool:
     raw_value = os.getenv(name, str(default)).strip().lower()
     return raw_value in {"1", "true", "yes", "on"}
+
+
+def _read_email_list(name: str) -> tuple[str, ...]:
+    raw_value = os.getenv(name, "")
+    emails: list[str] = []
+    for candidate in raw_value.split(","):
+        normalized_candidate = candidate.strip()
+        if not normalized_candidate:
+            continue
+        emails.append(validate_email_address(normalized_candidate))
+    return tuple(dict.fromkeys(emails))
 
 
 def get_settings() -> Settings:
@@ -82,4 +97,9 @@ def get_settings() -> Settings:
             "openid offline_access user_data vehicle_device_data vehicle_charging_cmds",
         ).strip(),
         tesla_oauth_redirect_path=redirect_path,
+        admin_emails=_read_email_list("ADMIN_EMAILS"),
+        tesla_partner_token_scope=os.getenv(
+            "TESLA_PARTNER_TOKEN_SCOPE",
+            "openid user_data vehicle_device_data vehicle_cmds vehicle_charging_cmds",
+        ).strip(),
     )

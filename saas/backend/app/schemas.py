@@ -124,6 +124,10 @@ class TeslaModePreferenceRequest(BaseModel):
         return normalized
 
 
+class FleetKeyGenerationRequest(BaseModel):
+    force: bool = False
+
+
 class ManualSyncRequest(BaseModel):
     include_fresh_demo_invoice: bool = True
 
@@ -186,3 +190,36 @@ class CurrentUserResponse(BaseModel):
     tesla_oauth_available: bool
     tesla_oauth_start_path: str | None
     tesla_owner_import_available: bool
+    is_admin: bool
+    admin_path: str | None
+
+
+class FleetAdminStatusResponse(BaseModel):
+    app_base_url: str
+    app_domain: str
+    callback_url: str
+    fleet_api_base_url: str
+    oauth_ready: bool
+    register_ready: bool
+    public_key_url: str
+    public_key_present: bool
+    private_key_present: bool
+    public_key_pem: str | None
+    public_key_fingerprint: str | None
+    key_generated_at: str | None
+    partner_token_scope: str
+    last_register_status: str
+    last_register_message: str | None
+    last_register_http_status: int | None
+    last_register_attempt_at: str | None
+    last_register_success_at: str | None
+    last_verify_status: str
+    last_verify_message: str | None
+    last_verify_http_status: int | None
+    last_verify_at: str | None
+
+
+class AdminActionResponse(BaseModel):
+    status: str
+    message: str
+    http_status: int | None = None

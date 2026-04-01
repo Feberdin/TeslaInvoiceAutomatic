@@ -13,6 +13,7 @@ Im kombinierten Repository liegt der eigentliche Anwendungscode unter `saas/`.
 - VIN-Verwaltung, Testmail und Rechnungsarchiv
 - offizieller Tesla-Fleet-Login fuer Endkunden
 - inoffizieller Tesla-Token-Import fuer Self-Hosted-Tests ohne Fleet-Billing
+- separates Admin-Menue fuer Betreiber mit Fleet-Public-Key und Partner-Register-Button
 - Demo-Fallback, falls noch kein echter Tesla-Zugang verbunden ist
 - bevorzugter Live-Weg, falls beide Varianten gespeichert sind
 
@@ -44,10 +45,12 @@ Ohne veroeffentlichtes Image kann Unraid zwar das Template sehen, aber den Conta
   `/mnt/cache/appdata/tesla-invoice-automatic-saas -> /data`
 - Pflichtvariablen:
   `APP_BASE_URL`, `SECRET_KEY`, `DATABASE_URL`, `DATA_DIR`, `DEMO_MODE`, `DEFAULT_FROM_EMAIL`
+- Betreiber-Menue:
+  `ADMIN_EMAILS`
 - Fuer beide Tesla-Varianten:
   `ENABLE_TESLA_FLEET_OAUTH`, `ENABLE_TESLA_OWNER_IMPORT`
 - Fuer offiziellen Tesla-Login:
-  `TESLA_CLIENT_ID`, `TESLA_CLIENT_SECRET`, `TESLA_FLEET_API_BASE_URL`
+  `TESLA_CLIENT_ID`, `TESLA_CLIENT_SECRET`, `TESLA_FLEET_API_BASE_URL`, `TESLA_PARTNER_TOKEN_SCOPE`
 - Fuer echten Mailtest:
   `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `SMTP_USE_TLS`, `SMTP_USE_SSL`
 
@@ -61,8 +64,9 @@ Ohne veroeffentlichtes Image kann Unraid zwar das Template sehen, aber den Conta
 6. optional den bevorzugten Live-Weg speichern
 7. Empfaenger speichern
 8. `Testrechnung senden` pruefen
-9. `Fleet-Sync`, `Token-Sync` oder `Demo-Sync` ausloesen
-10. Logs, PDFs und `email-outbox.log` kontrollieren
+9. falls Betreiber: `/admin` oeffnen, Fleet-Public-Key erzeugen und Partner-Status pruefen
+10. `Fleet-Sync`, `Token-Sync` oder `Demo-Sync` ausloesen
+11. Logs, PDFs und `email-outbox.log` kontrollieren
 
 ## Debug-Hinweise
 

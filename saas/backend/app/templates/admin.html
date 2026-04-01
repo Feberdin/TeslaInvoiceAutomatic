@@ -1,0 +1,131 @@
+<!--
+Purpose: Provide a separate operator-only menu for Tesla Fleet partner onboarding and diagnostics.
+Input/Output: The page itself is only a shell; admin.js reads status and triggers actions through the authenticated admin API.
+Invariants: Only configured operator accounts can open this page, and sensitive private-key material is never rendered here.
+Debug: If the Fleet login keeps failing with 412, inspect the status badges, the well-known public-key URL and the last register/verify messages on this page.
+-->
+
+{% extends "base.html" %}
+{% block content %}
+  <section class="dashboard-grid admin-grid">
+    <aside class="stack dashboard-sidebar">
+      <article class="panel">
+        <p class="eyebrow">Admin</p>
+        <h2 class="account-email">{{ current_user_email }}</h2>
+        <p class="helper">
+          Dieses Menue ist nur fuer Betreiber sichtbar. Hier richtest du die Tesla-Fleet-Partner-App ein,
+          die spaeter fuer den offiziellen Endkunden-Login benoetigt wird.
+        </p>
+        <div class="inline-pills">
+          <span id="admin-oauth-pill" class="soft-pill">Fleet-Konfig wird geladen</span>
+          <span id="admin-key-pill" class="soft-pill">Public Key wird geladen</span>
+        </div>
+        <div class="button-row">
+          <a class="secondary button-link" href="/dashboard">Zurueck zum Dashboard</a>
+          <a id="public-key-link" class="secondary button-link" href="#" target="_blank" rel="noreferrer">Public Key oeffnen</a>
+        </div>
+      </article>
+
+      <article class="panel">
+        <p class="eyebrow">Ablauf</p>
+        <h2>Tesla Partner-Setup</h2>
+        <div class="checkpoint-list">
+          <div class="checkpoint-item is-done">1. Client ID, Secret und HTTPS-Domain setzen</div>
+          <div class="checkpoint-item is-next">2. Fleet-Public-Key erzeugen</div>
+          <div class="checkpoint-item is-next">3. Well-Known-URL pruefen</div>
+          <div class="checkpoint-item is-next">4. Tesla-Partner-App fuer die Region registrieren</div>
+          <div class="checkpoint-item is-next">5. Tesla-Status pruefen und dann den Endkunden-Login testen</div>
+        </div>
+      </article>
+    </aside>
+
+    <main class="stack dashboard-main">
+      <div id="admin-notice" class="notice info" hidden></div>
+
+      <article class="panel">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Fleet Setup</p>
+            <h2>Partner-App Status</h2>
+          </div>
+          <div class="inline-pills">
+            <span id="admin-register-pill" class="soft-pill">Status wird geladen</span>
+          </div>
+        </div>
+        <p class="helper">
+          Diese Seite baut den Tesla-Partner-Teil fuer die Fleet API fertig. Ohne diesen Schritt beantwortet Tesla
+          Endpunkte wie `users/me` oft mit `412 Precondition Failed`.
+        </p>
+        <div class="status-grid">
+          <div class="metric"><span>App-Domain</span><strong id="admin-app-domain">-</strong></div>
+          <div class="metric"><span>Fleet API</span><strong id="admin-fleet-base">-</strong></div>
+          <div class="metric"><span>Key-Status</span><strong id="admin-key-status">-</strong></div>
+          <div class="metric"><span>Letzter Verify</span><strong id="admin-verify-status">-</strong></div>
+        </div>
+      </article>
+
+      <article class="panel">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Public Key</p>
+            <h2>Well-Known-Datei</h2>
+          </div>
+        </div>
+        <div class="detail-grid">
+          <div class="detail-card">
+            <span>Public-Key URL</span>
+            <strong id="admin-public-key-url">-</strong>
+          </div>
+          <div class="detail-card">
+            <span>Callback URL</span>
+            <strong id="admin-callback-url">-</strong>
+          </div>
+          <div class="detail-card">
+            <span>Fingerprint</span>
+            <strong id="admin-public-key-fingerprint">noch keiner</strong>
+          </div>
+          <div class="detail-card">
+            <span>Erzeugt am</span>
+            <strong id="admin-key-generated-at">noch nie</strong>
+          </div>
+        </div>
+        <pre id="admin-public-key-preview" class="code-block">Noch kein Public Key erzeugt.</pre>
+        <div class="button-row">
+          <button id="generate-key-button" class="secondary" type="button">Public Key erzeugen</button>
+          <button id="verify-partner-button" class="secondary" type="button">Tesla-Status pruefen</button>
+          <button id="register-partner-button" class="primary" type="button">Partner-App registrieren</button>
+        </div>
+        <p class="helper">
+          Der Register-Button nutzt dein Tesla Client Secret serverseitig, holt einen Partner-Token und ruft den Tesla-Register-Endpunkt
+          fuer die eingestellte Region auf. Der private Schluessel bleibt im `/data`-Volume und wird nie im Browser angezeigt.
+        </p>
+      </article>
+
+      <article class="panel">
+        <p class="eyebrow">Diagnose</p>
+        <h2>Letzte Tesla-Antworten</h2>
+        <div class="detail-grid">
+          <div class="detail-card">
+            <span>Register</span>
+            <strong id="admin-last-register-status">noch nicht gestartet</strong>
+            <small id="admin-last-register-message" class="helper">Noch kein Register-Aufruf ausgefuehrt.</small>
+          </div>
+          <div class="detail-card">
+            <span>Verify</span>
+            <strong id="admin-last-verify-status">noch nicht gestartet</strong>
+            <small id="admin-last-verify-message" class="helper">Noch keine Tesla-Pruefung ausgefuehrt.</small>
+          </div>
+          <div class="detail-card">
+            <span>Partner Token Scope</span>
+            <strong id="admin-partner-scope">-</strong>
+          </div>
+          <div class="detail-card">
+            <span>HTTP-Status</span>
+            <strong id="admin-last-http-status">-</strong>
+          </div>
+        </div>
+      </article>
+    </main>
+  </section>
+  <script src="/static/admin.js"></script>
+{% endblock %}

@@ -7,56 +7,114 @@ Debug: If the dashboard loads but actions fail, compare the rendered page values
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Request
-from fastapi.responses import HTMLResponse, RedirectResponse
-from fastapi.templating import Jinja2Templates
+from sqlalchemy import select
 
+from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi.responses import HTMLResponse, PlainTextResponse, RedirectResponse
+from fastapi.templating import Jinja2Templates
+from sqlalchemy.orm import Session
+
+from app.admin import user_is_admin
 from app.config import get_settings
+from app.database import get_db_session
+from app.models import User
+from app.services.tesla_partner import TeslaPartnerAdminService
 
 
 router = APIRouter(tags=["pages"])
 templates = Jinja2Templates(directory="app/templates")
 settings = get_settings()
+partner_admin_service = TeslaPartnerAdminService(settings)
+
+
+def _template_context(request: Request, db: Session) -> dict[str, object]:
+    """Build the common template context including auth and admin navigation state."""
+
+    user_id = request.session.get("user_id")
+    is_authenticated = isinstance(user_id, int)
+    user = db.scalar(select(User).where(User.id == user_id)) if is_authenticated else None
+    is_admin = user_is_admin(settings, user.email if user else None)
+    return {
+        "request": request,
+        "app_name": settings.app_name,
+        "is_authenticated": is_authenticated,
+        "is_admin": is_admin,
+        "admin_path": "/admin" if is_admin else None,
+        "current_user_email": user.email if user else None,
+    }
 
 
 @router.get("/", response_class=HTMLResponse)
-def index(request: Request) -> HTMLResponse:
+def index(request: Request, db: Session = Depends(get_db_session)) -> HTMLResponse:
+    context = _template_context(request, db)
     return templates.TemplateResponse(
         "index.html",
         {
-            "request": request,
-            "app_name": settings.app_name,
-            "is_authenticated": bool(request.session.get("user_id")),
+            **context,
         },
     )
 
 
 @router.get("/auth", response_class=HTMLResponse)
-def auth_page(request: Request) -> HTMLResponse:
+def auth_page(request: Request, db: Session = Depends(get_db_session)) -> HTMLResponse:
     if request.session.get("user_id"):
         return RedirectResponse("/dashboard", status_code=303)
 
+    context = _template_context(request, db)
     return templates.TemplateResponse(
         "auth.html",
         {
-            "request": request,
-            "app_name": settings.app_name,
+            **context,
             "demo_mode": settings.demo_mode,
         },
     )
 
 
 @router.get("/dashboard", response_class=HTMLResponse)
-def dashboard(request: Request) -> HTMLResponse:
+def dashboard(request: Request, db: Session = Depends(get_db_session)) -> HTMLResponse:
     if not request.session.get("user_id"):
         return RedirectResponse("/auth", status_code=303)
 
+    context = _template_context(request, db)
     return templates.TemplateResponse(
         "dashboard.html",
         {
-            "request": request,
-            "app_name": settings.app_name,
+            **context,
             "demo_mode": settings.demo_mode,
             "smtp_configured": bool(settings.smtp_host),
         },
     )
+
+
+@router.get("/admin", response_class=HTMLResponse)
+def admin_page(request: Request, db: Session = Depends(get_db_session)) -> HTMLResponse:
+    if not request.session.get("user_id"):
+        return RedirectResponse("/auth", status_code=303)
+
+    context = _template_context(request, db)
+    if not context["is_admin"]:
+        raise HTTPException(
+            status_code=403,
+            detail="Dieses Admin-Menue ist nur fuer Betreiber freigeschaltet. Bitte `ADMIN_EMAILS` pruefen.",
+        )
+
+    return templates.TemplateResponse(
+        "admin.html",
+        {
+            **context,
+        },
+    )
+
+
+@router.get("/.well-known/appspecific/com.tesla.3p.public-key.pem", response_class=PlainTextResponse)
+def tesla_public_key() -> PlainTextResponse:
+    public_key_pem = partner_admin_service.public_key_pem()
+    if not public_key_pem:
+        raise HTTPException(
+            status_code=404,
+            detail=(
+                "Der Tesla-Fleet-Public-Key wurde noch nicht erzeugt. "
+                "Bitte zuerst das Admin-Menue in der App verwenden."
+            ),
+        )
+    return PlainTextResponse(public_key_pem, media_type="application/x-pem-file")

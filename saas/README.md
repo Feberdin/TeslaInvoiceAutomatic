@@ -6,6 +6,7 @@ Diese Version ist ein Docker-first Teststand fuer Unraid und lokale Docker-Umgeb
 - eine oder mehrere VINs hinterlegen
 - Tesla per offiziellem Fleet OAuth verbinden
 - oder Tesla per inoffiziellem Token-Import anbinden
+- Betreiber koennen im separaten Admin-Menue den Tesla-Fleet-Public-Key erzeugen und die Partner-App registrieren
 - Empfaenger fuer Rechnungen speichern
 - Testrechnung per SMTP oder Outbox pruefen
 - Demo- oder Live-Rechnungen erzeugen, archivieren und herunterladen
@@ -21,10 +22,11 @@ Wichtig: Diese Build-Stufe unterstuetzt bewusst beide Varianten parallel. Der Fl
 4. Ein offizieller Tesla-Fleet-Client startet den OAuth-Login, tauscht den Callback-Code gegen Tokens und ruft pro VIN echte Charging-Invoices ab.
 5. Ein inoffizieller Owner-Token-/Cache-Import bleibt als Self-Hosted-Weg ohne Fleet-Billing verfuegbar.
 6. Nutzer koennen festlegen, welcher Live-Weg bevorzugt werden soll, falls beide Varianten gespeichert sind.
-7. Wenn kein echter Tesla-Zugang verbunden ist, erzeugt der Demo-Tesla-Adapter pro VIN nachvollziehbare Test-Rechnungen.
-8. Rechnungen landen im Datenverzeichnis und im Dashboard-Archiv.
-9. E-Mails gehen entweder ueber echten SMTP oder nachvollziehbar in `email-outbox.log`.
-10. Buchhaltungssysteme sind bereits als UI-Platzhalter vorhanden, aber noch ohne echten Export.
+7. Betreiber koennen im separaten Admin-Menue den Tesla-Fleet-Public-Key erzeugen, unter `/.well-known/...` ausliefern und den Tesla-Partner-Register-Call fuer die Region ausloesen.
+8. Wenn kein echter Tesla-Zugang verbunden ist, erzeugt der Demo-Tesla-Adapter pro VIN nachvollziehbare Test-Rechnungen.
+9. Rechnungen landen im Datenverzeichnis und im Dashboard-Archiv.
+10. E-Mails gehen entweder ueber echten SMTP oder nachvollziehbar in `email-outbox.log`.
+11. Buchhaltungssysteme sind bereits als UI-Platzhalter vorhanden, aber noch ohne echten Export.
 
 ## Annahmen
 
@@ -40,6 +42,7 @@ Wichtig: Diese Build-Stufe unterstuetzt bewusst beide Varianten parallel. Der Fl
 - Session-basierter Dashboard-Zugang
 - mehrere VINs pro Nutzer
 - offizieller Tesla-Fleet-Login direkt aus dem Dashboard
+- separates Admin-Menue fuer Betreiber mit Public-Key-Status, Partner-Register-Button und Tesla-Verify
 - inoffizieller Tesla-Owner-Import ueber Refresh-Token oder TeslaPy-/tesla_ha-`cache.json`
 - bevorzugter Live-Weg pro Nutzer, falls beide Varianten parallel hinterlegt sind
 - gespeicherte Versandempfaenger pro Nutzer
@@ -67,6 +70,7 @@ Wichtig: Diese Build-Stufe unterstuetzt bewusst beide Varianten parallel. Der Fl
     ├── requirements.txt
     ├── app
     │   ├── auth.py
+    │   ├── admin.py
     │   ├── config.py
     │   ├── database.py
     │   ├── domain.py
@@ -90,12 +94,15 @@ Wichtig: Diese Build-Stufe unterstuetzt bewusst beide Varianten parallel. Der Fl
     │   │   ├── sync.py
     │   │   ├── tesla.py
     │   │   ├── tesla_fleet.py
+    │   │   ├── tesla_partner.py
     │   │   └── tesla_owner.py
     │   ├── static
+    │   │   ├── admin.js
     │   │   ├── auth.js
     │   │   ├── dashboard.js
     │   │   └── styles.css
     │   └── templates
+    │       ├── admin.html
     │       ├── auth.html
     │       ├── base.html
     │       ├── dashboard.html
@@ -118,6 +125,10 @@ Verarbeitet Registrierung, Login, Session, Tesla OAuth, manuellen Tesla-Import, 
 ### `backend/app/services/tesla_fleet.py`
 
 Startet den offiziellen Tesla OAuth-Flow, verarbeitet den Callback, refreshed Fleet-Tokens und ruft Tesla-Charging-History sowie PDF-Rechnungen fuer echte VINs ab.
+
+### `backend/app/services/tesla_partner.py`
+
+Erzeugt den Tesla-Fleet-Public-Key, liefert Status fuer das Admin-Menue, holt Partner-Tokens und fuehrt den Tesla-Partner-Register- sowie Verify-Call aus.
 
 ### `backend/app/services/tesla_owner.py`
 
@@ -156,9 +167,11 @@ DEFAULT_FROM_EMAIL=no-reply@example.com
 SECRET_KEY=bitte-einen-langen-zufaelligen-wert-setzen
 ENABLE_TESLA_FLEET_OAUTH=true
 ENABLE_TESLA_OWNER_IMPORT=true
+ADMIN_EMAILS=admin@example.com
 TESLA_CLIENT_ID=deine-tesla-client-id
 TESLA_CLIENT_SECRET=dein-tesla-client-secret
 TESLA_FLEET_API_BASE_URL=https://fleet-api.prd.eu.vn.cloud.tesla.com
+TESLA_PARTNER_TOKEN_SCOPE=openid user_data vehicle_device_data vehicle_cmds vehicle_charging_cmds
 ```
 
 ### 2. Stack starten
@@ -185,6 +198,19 @@ http://localhost:8000
 8. optional den bevorzugten Live-Weg speichern
 9. `Fleet-Sync`, `Token-Sync` oder `Demo-Sync` ausloesen
 10. PDFs im Archiv herunterladen
+
+## Tesla Fleet Admin-Menue
+
+Wenn dein Betreiberkonto in `ADMIN_EMAILS` enthalten ist, erscheint zusaetzlich ein separates `/admin`-Menue.
+
+Dort kannst du:
+
+1. den Tesla-Fleet-Public-Key erzeugen
+2. die Well-Known-URL `/.well-known/appspecific/com.tesla.3p.public-key.pem` pruefen
+3. den Tesla-Partner-Register-Call fuer die aktuelle Region ausloesen
+4. den Tesla-Status pruefen, ob der Public Key bereits registriert ist
+
+Das Admin-Menue ist fuer den Betreiber gedacht. Endkunden brauchen diesen Schritt spaeter nicht mehr, sondern nur den offiziellen Tesla-Login.
 
 ## Echte Tesla-Daten testen
 
@@ -230,11 +256,13 @@ Wichtige Variablen in Unraid:
 - `DEFAULT_FROM_EMAIL`
 - `ENABLE_TESLA_FLEET_OAUTH`
 - `ENABLE_TESLA_OWNER_IMPORT`
+- `ADMIN_EMAILS`
 - `TESLA_CLIENT_ID`
 - `TESLA_CLIENT_SECRET`
 - `TESLA_FLEET_API_BASE_URL`
 - `TESLA_OAUTH_SCOPE`
 - `TESLA_OAUTH_REDIRECT_PATH`
+- `TESLA_PARTNER_TOKEN_SCOPE`
 - `SMTP_HOST`
 - `SMTP_PORT`
 - `SMTP_USERNAME`
