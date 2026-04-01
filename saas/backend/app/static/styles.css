@@ -184,11 +184,13 @@ button:hover,
   display: grid;
   grid-template-columns: 360px 1fr;
   gap: 24px;
+  align-items: start;
 }
 
 .stack {
   display: grid;
   gap: 18px;
+  align-content: start;
 }
 
 .compact-stack {
@@ -242,7 +244,8 @@ input[type="checkbox"] {
 
 .metric strong {
   display: block;
-  font-size: 1.7rem;
+  font-size: 1.45rem;
+  line-height: 1.2;
   margin-top: 8px;
 }
 
@@ -300,6 +303,120 @@ input[type="checkbox"] {
   width: 100%;
 }
 
+.dashboard-sidebar {
+  position: sticky;
+  top: 24px;
+}
+
+.dashboard-main {
+  gap: 20px;
+}
+
+.account-panel {
+  overflow: hidden;
+}
+
+.account-email {
+  font-size: clamp(1.35rem, 2vw, 1.9rem);
+  line-height: 1.18;
+  overflow-wrap: anywhere;
+}
+
+.inline-pills,
+.status-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.soft-pill,
+.status-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border-radius: 999px;
+  padding: 8px 12px;
+  font-size: 0.88rem;
+  font-weight: 700;
+  border: 1px solid rgba(24, 34, 47, 0.08);
+  background: rgba(255, 255, 255, 0.7);
+}
+
+.status-chip.ok {
+  color: var(--success);
+  background: rgba(15, 122, 82, 0.08);
+}
+
+.status-chip.muted,
+.soft-pill {
+  color: var(--muted);
+}
+
+.dashboard-overview-panel {
+  display: grid;
+  gap: 24px;
+}
+
+.dashboard-overview {
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(280px, 360px);
+  gap: 24px;
+  align-items: start;
+}
+
+.dashboard-lead {
+  max-width: 56ch;
+  margin-bottom: 0;
+}
+
+.dashboard-copy h2 {
+  margin-bottom: 10px;
+}
+
+.mode-callout {
+  padding: 20px;
+  border-radius: 22px;
+  background:
+    linear-gradient(155deg, rgba(200, 79, 47, 0.1), rgba(255, 255, 255, 0.78)),
+    var(--surface);
+  border: 1px solid rgba(200, 79, 47, 0.16);
+}
+
+.mode-callout h3 {
+  font-size: 1.45rem;
+  line-height: 1.2;
+  margin-bottom: 10px;
+}
+
+.mode-callout p {
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+.checkpoint-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.checkpoint-item {
+  padding: 12px 14px;
+  border-radius: 16px;
+  font-size: 0.94rem;
+  font-weight: 600;
+}
+
+.checkpoint-item.is-done {
+  background: rgba(15, 122, 82, 0.08);
+  color: var(--success);
+}
+
+.checkpoint-item.is-next {
+  background: rgba(200, 79, 47, 0.08);
+  color: var(--accent-dark);
+}
+
 .checkbox-row {
   display: flex;
   align-items: center;
@@ -347,6 +464,10 @@ table {
   border-collapse: collapse;
 }
 
+.table-wrap {
+  overflow-x: auto;
+}
+
 th,
 td {
   text-align: left;
@@ -371,6 +492,14 @@ th {
 @media (max-width: 920px) {
   .hero,
   .dashboard-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard-sidebar {
+    position: static;
+  }
+
+  .dashboard-overview {
     grid-template-columns: 1fr;
   }
 

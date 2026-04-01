@@ -8,13 +8,17 @@ Debug: If actions update the wrong user, inspect the active session and the `/ap
 {% extends "base.html" %}
 {% block content %}
   <section class="dashboard-grid">
-    <aside class="stack">
-      <article class="panel">
+    <aside class="stack dashboard-sidebar">
+      <article class="panel account-panel">
         <p class="eyebrow">Konto</p>
-        <h2 id="current-email">Wird geladen ...</h2>
+        <h2 id="current-email" class="account-email">Wird geladen ...</h2>
         <p class="helper">
           Dieser Bereich arbeitet mit deinem angemeldeten Konto. VINs, Empfaenger und Rechnungen bleiben daran gebunden.
         </p>
+        <div class="inline-pills">
+          <span class="soft-pill">{% if demo_mode %}Demo-Modus aktiv{% else %}Live-Modus{% endif %}</span>
+          <span id="account-delivery-pill" class="soft-pill">{% if smtp_configured %}SMTP aktiv{% else %}Outbox aktiv{% endif %}</span>
+        </div>
         <div class="button-row">
           <button id="logout-button" class="secondary" type="button">Logout</button>
         </div>
@@ -70,12 +74,41 @@ Debug: If actions update the wrong user, inspect the active session and the `/ap
       </article>
     </aside>
 
-    <main class="stack">
+    <main class="stack dashboard-main">
       <div id="notice" class="notice info" hidden></div>
 
-      <article class="panel">
-        <p class="eyebrow">Status</p>
-        <h2>Dashboard</h2>
+      <article class="panel dashboard-overview-panel">
+        <div class="dashboard-overview">
+          <div class="dashboard-copy">
+            <p class="eyebrow">Status</p>
+            <h2>Dashboard</h2>
+            <p class="lead dashboard-lead">
+              Du testest aktuell den kompletten Nutzer- und Versandfluss fuer dein SaaS-Projekt:
+              Registrierung, VIN-Verwaltung, E-Mail-Versand, PDF-Archiv und Buchhaltungsziele.
+            </p>
+            <div class="status-chip-row">
+              <span class="status-chip ok">Login und VINs aktiv</span>
+              <span class="status-chip ok">{% if smtp_configured %}SMTP-Versand aktiv{% else %}Outbox-Versand aktiv{% endif %}</span>
+              <span class="status-chip muted">Tesla Fleet OAuth folgt</span>
+            </div>
+          </div>
+
+          <aside class="mode-callout">
+            <p class="eyebrow">Tesla Quelle</p>
+            <h3>{% if demo_mode %}Aktuell nur Demo-Rechnungen{% else %}Live-Tesla geplant{% endif %}</h3>
+            <p>
+              Echte Tesla-Supercharger-Rechnungen lassen sich in dieser Build-Stufe noch nicht testen,
+              weil die Anbindung an Tesla Fleet OAuth und den Invoice-Endpunkt noch nicht eingebaut ist.
+            </p>
+            <div class="checkpoint-list">
+              <div class="checkpoint-item is-done">Login, VINs und Nutzerkonten funktionieren</div>
+              <div class="checkpoint-item is-done">SMTP- oder Outbox-Versand funktioniert</div>
+              <div class="checkpoint-item is-done">PDF-Archiv und Download funktionieren</div>
+              <div class="checkpoint-item is-next">Als naechster Schritt: echte Tesla OAuth- und Invoice-API</div>
+            </div>
+          </aside>
+        </div>
+
         <div class="status-grid">
           <div class="metric"><span>Fahrzeuge</span><strong id="metric-vehicles">0</strong></div>
           <div class="metric"><span>Rechnungen</span><strong id="metric-invoices">0</strong></div>
@@ -87,7 +120,8 @@ Debug: If actions update the wrong user, inspect the active session and the `/ap
       <article class="panel">
         <p class="eyebrow">Archiv</p>
         <h2>Rechnungsuebersicht</h2>
-        <table>
+        <div class="table-wrap">
+          <table>
           <thead>
             <tr>
               <th>Invoice ID</th>
@@ -103,7 +137,8 @@ Debug: If actions update the wrong user, inspect the active session and the `/ap
               <td colspan="6">Noch keine Rechnungen vorhanden. Fuehre zuerst einen Test-Sync aus.</td>
             </tr>
           </tbody>
-        </table>
+          </table>
+        </div>
       </article>
     </main>
   </section>

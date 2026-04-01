@@ -119,6 +119,7 @@ async function refreshDashboard() {
     ? new Date(profile.last_synced_at).toLocaleString("de-DE")
     : "noch nie";
   document.getElementById("metric-delivery").textContent = profile.smtp_configured ? "SMTP aktiv" : "Outbox";
+  document.getElementById("account-delivery-pill").textContent = profile.smtp_configured ? "SMTP aktiv" : "Outbox aktiv";
 
   document.getElementById("recipients").value = profile.email_recipients.join(", ");
   document.getElementById("subject-template").value = profile.subject_template;
