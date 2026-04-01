@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 from app.auth import validate_password_strength
 from app.utils import validate_email_address, validate_recipient_list, validate_vin
@@ -62,6 +62,56 @@ class VehicleCreateRequest(BaseModel):
         return validate_vin(value)
 
 
+class TeslaConnectRequest(BaseModel):
+    tesla_account_email: str = Field(..., min_length=3, max_length=255)
+    cache_json: str | None = None
+    access_token: str | None = None
+    refresh_token: str | None = None
+    auth_base_url: str = Field(default="https://auth.tesla.com", min_length=8, max_length=255)
+    ownership_base_url: str = Field(
+        default="https://ownership.tesla.com/mobile-app/charging",
+        min_length=8,
+        max_length=255,
+    )
+    device_language: str = Field(default="de", min_length=2, max_length=16)
+    device_country: str = Field(default="DE", min_length=2, max_length=16)
+    http_locale: str = Field(default="de_DE", min_length=2, max_length=32)
+
+    @field_validator("tesla_account_email")
+    @classmethod
+    def validate_tesla_account_email(cls, value: str) -> str:
+        return validate_email_address(value)
+
+    @field_validator("cache_json", "access_token", "refresh_token")
+    @classmethod
+    def normalize_optional_secret_fields(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        normalized = value.strip()
+        return normalized or None
+
+    @field_validator("auth_base_url", "ownership_base_url")
+    @classmethod
+    def validate_url_like_fields(cls, value: str) -> str:
+        normalized = value.strip()
+        if not normalized.startswith("https://"):
+            raise ValueError("Tesla-URLs muessen mit https:// beginnen.")
+        return normalized.rstrip("/")
+
+    @field_validator("device_language", "device_country", "http_locale")
+    @classmethod
+    def normalize_locale_fields(cls, value: str) -> str:
+        return value.strip()
+
+    @model_validator(mode="after")
+    def validate_credentials_present(self) -> "TeslaConnectRequest":
+        if self.cache_json or self.refresh_token or self.access_token:
+            return self
+        raise ValueError(
+            "Bitte entweder einen TeslaPy-/tesla_ha-Cache oder Tesla-Tokens einfuegen, bevor du verbindest."
+        )
+
+
 class ManualSyncRequest(BaseModel):
     include_fresh_demo_invoice: bool = True
 
@@ -82,6 +132,7 @@ class VehicleResponse(BaseModel):
     vin: str
     nickname: str
     model: str
+    account_mode: str
 
 
 class InvoiceResponse(BaseModel):
@@ -92,6 +143,7 @@ class InvoiceResponse(BaseModel):
     charge_started_at: datetime
     vehicle_name: str
     pdf_download_url: str
+    source: str
 
 
 class SessionResponse(BaseModel):
@@ -111,3 +163,8 @@ class CurrentUserResponse(BaseModel):
     accounting_targets: list[str]
     available_accounting_targets: list[str]
     vehicles: list[VehicleResponse]
+    active_sync_mode: str
+    demo_mode_enabled: bool
+    tesla_connected: bool
+    tesla_account_email: str | None
+    tesla_last_error: str | None

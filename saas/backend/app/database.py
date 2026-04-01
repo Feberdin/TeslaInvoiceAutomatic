@@ -81,6 +81,23 @@ def _run_lightweight_migrations() -> None:
         if "accounting_targets_csv" not in email_columns:
             statements.append("ALTER TABLE email_settings ADD COLUMN accounting_targets_csv TEXT DEFAULT ''")
 
+    if "tesla_accounts" in table_names:
+        account_columns = {column["name"] for column in inspector.get_columns("tesla_accounts")}
+        if "tesla_account_email" not in account_columns:
+            statements.append("ALTER TABLE tesla_accounts ADD COLUMN tesla_account_email VARCHAR(255)")
+        if "auth_base_url" not in account_columns:
+            statements.append("ALTER TABLE tesla_accounts ADD COLUMN auth_base_url VARCHAR(255)")
+        if "ownership_base_url" not in account_columns:
+            statements.append("ALTER TABLE tesla_accounts ADD COLUMN ownership_base_url VARCHAR(255)")
+        if "device_language" not in account_columns:
+            statements.append("ALTER TABLE tesla_accounts ADD COLUMN device_language VARCHAR(16)")
+        if "device_country" not in account_columns:
+            statements.append("ALTER TABLE tesla_accounts ADD COLUMN device_country VARCHAR(16)")
+        if "http_locale" not in account_columns:
+            statements.append("ALTER TABLE tesla_accounts ADD COLUMN http_locale VARCHAR(32)")
+        if "last_error" not in account_columns:
+            statements.append("ALTER TABLE tesla_accounts ADD COLUMN last_error TEXT")
+
     if statements:
         with engine.begin() as connection:
             for statement in statements:

@@ -16,7 +16,7 @@ Debug: If actions update the wrong user, inspect the active session and the `/ap
           Dieser Bereich arbeitet mit deinem angemeldeten Konto. VINs, Empfaenger und Rechnungen bleiben daran gebunden.
         </p>
         <div class="inline-pills">
-          <span class="soft-pill">{% if demo_mode %}Demo-Modus aktiv{% else %}Live-Modus{% endif %}</span>
+          <span id="account-tesla-pill" class="soft-pill">{% if demo_mode %}Demo-Modus aktiv{% else %}Live-Modus{% endif %}</span>
           <span id="account-delivery-pill" class="soft-pill">{% if smtp_configured %}SMTP aktiv{% else %}Outbox aktiv{% endif %}</span>
         </div>
         <div class="button-row">
@@ -57,12 +57,11 @@ Debug: If actions update the wrong user, inspect the active session and the `/ap
         <div class="inline-section">
           <h3>Buchhaltungssysteme (Platzhalter)</h3>
           <p class="helper">Diese Auswahl ist derzeit nur sichtbar und wird spaeter mit echten Exporten verknuepft.</p>
-          <div id="accounting-options" class="pill-grid"></div>
+        <div id="accounting-options" class="pill-grid"></div>
         </div>
         <div class="button-row">
           <button id="save-settings" class="secondary" type="button">Einstellungen speichern</button>
           <button id="send-test-email" class="primary" type="button">Testrechnung senden</button>
-          <button id="run-sync" class="primary" type="button">Demo-Sync ausloesen</button>
         </div>
         <p class="helper" id="smtp-hint">
           {% if smtp_configured %}
@@ -82,29 +81,29 @@ Debug: If actions update the wrong user, inspect the active session and the `/ap
           <div class="dashboard-copy">
             <p class="eyebrow">Status</p>
             <h2>Dashboard</h2>
-            <p class="lead dashboard-lead">
+            <p id="dashboard-lead" class="lead dashboard-lead">
               Du testest aktuell den kompletten Nutzer- und Versandfluss fuer dein SaaS-Projekt:
               Registrierung, VIN-Verwaltung, E-Mail-Versand, PDF-Archiv und Buchhaltungsziele.
             </p>
             <div class="status-chip-row">
               <span class="status-chip ok">Login und VINs aktiv</span>
               <span class="status-chip ok">{% if smtp_configured %}SMTP-Versand aktiv{% else %}Outbox-Versand aktiv{% endif %}</span>
-              <span class="status-chip muted">Tesla Fleet OAuth folgt</span>
+              <span id="dashboard-mode-chip" class="status-chip muted">Tesla noch nicht verbunden</span>
             </div>
           </div>
 
           <aside class="mode-callout">
             <p class="eyebrow">Tesla Quelle</p>
-            <h3>{% if demo_mode %}Aktuell nur Demo-Rechnungen{% else %}Live-Tesla geplant{% endif %}</h3>
-            <p>
-              Echte Tesla-Supercharger-Rechnungen lassen sich in dieser Build-Stufe noch nicht testen,
-              weil die Anbindung an Tesla Fleet OAuth und den Invoice-Endpunkt noch nicht eingebaut ist.
+            <h3 id="tesla-mode-title">{% if demo_mode %}Aktuell nur Demo-Rechnungen{% else %}Bitte Tesla verbinden{% endif %}</h3>
+            <p id="tesla-mode-body">
+              Echte Tesla-Supercharger-Rechnungen werden aktiv, sobald du unten deinen Tesla-Zugang importierst
+              und mindestens eine echte VIN speicherst.
             </p>
             <div class="checkpoint-list">
               <div class="checkpoint-item is-done">Login, VINs und Nutzerkonten funktionieren</div>
               <div class="checkpoint-item is-done">SMTP- oder Outbox-Versand funktioniert</div>
               <div class="checkpoint-item is-done">PDF-Archiv und Download funktionieren</div>
-              <div class="checkpoint-item is-next">Als naechster Schritt: echte Tesla OAuth- und Invoice-API</div>
+              <div id="tesla-mode-next-step" class="checkpoint-item is-next">Als naechster Schritt: Tesla-Zugang verbinden und Live-Sync ausloesen</div>
             </div>
           </aside>
         </div>
@@ -113,7 +112,50 @@ Debug: If actions update the wrong user, inspect the active session and the `/ap
           <div class="metric"><span>Fahrzeuge</span><strong id="metric-vehicles">0</strong></div>
           <div class="metric"><span>Rechnungen</span><strong id="metric-invoices">0</strong></div>
           <div class="metric"><span>Letzter Sync</span><strong id="metric-sync">noch nie</strong></div>
+          <div class="metric"><span>Aktive Quelle</span><strong id="metric-source">Demo</strong></div>
           <div class="metric"><span>Versand</span><strong id="metric-delivery">Outbox</strong></div>
+        </div>
+      </article>
+
+      <article class="panel">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Tesla Verbindung</p>
+            <h2>Echte Tesla-Daten aktivieren</h2>
+          </div>
+          <div class="inline-pills">
+            <span id="tesla-connection-badge" class="soft-pill">Noch nicht verbunden</span>
+          </div>
+        </div>
+        <p id="tesla-connection-help" class="helper">
+          Empfohlen: den kompletten TeslaPy-/tesla_ha-`cache.json`-Inhalt einfuegen. Alternativ kannst du ein Refresh-Token
+          und optional ein Access-Token hinterlegen.
+        </p>
+        <label for="tesla-account-email">Tesla Konto E-Mail</label>
+        <input id="tesla-account-email" type="email" placeholder="z. B. dein.tesla.konto@example.com" />
+        <label for="tesla-cache-json">TeslaPy / tesla_ha cache.json (empfohlen)</label>
+        <textarea
+          id="tesla-cache-json"
+          placeholder='Kompletten JSON-Inhalt einfuegen, z. B. {"dein@email.de": {"url": "...", "sso": {...}}}'
+        ></textarea>
+        <div class="form-grid-two">
+          <div>
+            <label for="tesla-refresh-token">Refresh-Token (alternativ)</label>
+            <input id="tesla-refresh-token" type="password" placeholder="Tesla Refresh-Token" />
+          </div>
+          <div>
+            <label for="tesla-access-token">Access-Token (optional)</label>
+            <input id="tesla-access-token" type="password" placeholder="Tesla Access-Token" />
+          </div>
+        </div>
+        <p class="helper">
+          Die eingegebenen Tesla-Tokens werden nur zum Speichern und Validieren verwendet. Nach erfolgreichem Speichern
+          leert das Dashboard die Eingabefelder wieder.
+        </p>
+        <div id="tesla-error-box" class="notice error" hidden></div>
+        <div class="button-row">
+          <button id="connect-tesla" class="primary" type="button">Tesla verbinden</button>
+          <button id="run-sync" class="secondary" type="button">Sync ausloesen</button>
         </div>
       </article>
 
@@ -129,12 +171,13 @@ Debug: If actions update the wrong user, inspect the active session and the `/ap
               <th>Fahrzeug</th>
               <th>Standort</th>
               <th>Betrag</th>
+              <th>Quelle</th>
               <th>Aktion</th>
             </tr>
           </thead>
           <tbody id="invoice-body">
             <tr>
-              <td colspan="6">Noch keine Rechnungen vorhanden. Fuehre zuerst einen Test-Sync aus.</td>
+              <td colspan="7">Noch keine Rechnungen vorhanden. Fuehre zuerst einen Sync aus.</td>
             </tr>
           </tbody>
           </table>

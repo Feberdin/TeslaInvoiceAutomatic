@@ -182,7 +182,7 @@ button:hover,
 
 .dashboard-grid {
   display: grid;
-  grid-template-columns: 360px 1fr;
+  grid-template-columns: 380px minmax(0, 1fr);
   gap: 24px;
   align-items: start;
 }
@@ -310,6 +310,7 @@ input[type="checkbox"] {
 
 .dashboard-main {
   gap: 20px;
+  min-width: 0;
 }
 
 .account-panel {
@@ -423,8 +424,22 @@ input[type="checkbox"] {
   gap: 10px;
 }
 
+.section-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+
 .inline-section {
   margin-top: 8px;
+}
+
+.form-grid-two {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
 }
 
 .pill-grid {
@@ -455,6 +470,41 @@ input[type="checkbox"] {
   border: 1px solid rgba(24, 34, 47, 0.08);
 }
 
+.list-item-wrap {
+  align-items: flex-start;
+}
+
+.list-copy {
+  min-width: 0;
+}
+
+.tag-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.mini-tag {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 5px 10px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  border: 1px solid rgba(24, 34, 47, 0.08);
+}
+
+.tag-live {
+  background: rgba(15, 122, 82, 0.08);
+  color: var(--success);
+}
+
+.tag-demo {
+  background: rgba(200, 79, 47, 0.08);
+  color: var(--accent-dark);
+}
+
 .small-button {
   padding: 8px 14px;
 }
@@ -473,6 +523,7 @@ td {
   text-align: left;
   padding: 14px 12px;
   border-bottom: 1px solid rgba(24, 34, 47, 0.08);
+  vertical-align: top;
 }
 
 th {
@@ -500,6 +551,10 @@ th {
   }
 
   .dashboard-overview {
+    grid-template-columns: 1fr;
+  }
+
+  .form-grid-two {
     grid-template-columns: 1fr;
   }
 

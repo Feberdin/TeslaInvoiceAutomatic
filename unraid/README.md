@@ -10,7 +10,9 @@ Im kombinierten Repository liegt der eigentliche Anwendungscode unter `saas/`.
 - `TeslaInvoiceAutomatic-SaaS.xml`: Docker-Template fuer Unraid
 - Single-Container-Laufmodus im Python-Image
 - Registrierung, Login und Session-Cookies
-- VIN-Verwaltung, Testmail und Demo-Rechnungsarchiv
+- VIN-Verwaltung, Testmail und Rechnungsarchiv
+- Tesla-Import ueber TeslaPy-/tesla_ha-Cache oder Tesla-Tokens
+- Demo-Fallback, falls noch kein echter Tesla-Zugang verbunden ist
 
 ## Wichtiger Hinweis
 
@@ -48,11 +50,12 @@ Ohne veroeffentlichtes Image kann Unraid zwar das Template sehen, aber den Conta
 1. App installieren und starten
 2. `/auth` oeffnen
 3. Konto registrieren
-4. eine VIN hinterlegen
-5. Empfaenger speichern
-6. `Testrechnung senden` pruefen
-7. `Demo-Sync ausloesen`
-8. Logs, PDFs und `email-outbox.log` kontrollieren
+4. optional Tesla-Zugang im Dashboard importieren
+5. eine VIN hinterlegen
+6. Empfaenger speichern
+7. `Testrechnung senden` pruefen
+8. `Tesla-Sync ausloesen` oder `Demo-Sync ausloesen`
+9. Logs, PDFs und `email-outbox.log` kontrollieren
 
 ## Debug-Hinweise
 

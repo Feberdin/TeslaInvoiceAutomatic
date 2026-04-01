@@ -36,3 +36,4 @@ class SyncSummary:
     skipped_count: int
     emailed_recipients: list[str]
     delivery_mode: str
+    sync_mode: str

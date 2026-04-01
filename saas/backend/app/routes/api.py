@@ -8,6 +8,7 @@ Debug: If the dashboard stops updating, inspect the API responses and session st
 from __future__ import annotations
 
 from datetime import datetime, timezone
+import hashlib
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -18,6 +19,7 @@ from sqlalchemy.orm import Session, selectinload
 from app.auth import clear_session_user, get_session_user_id, hash_password, set_session_user, verify_password
 from app.config import get_settings
 from app.database import get_db_session
+from app.errors import InvoiceDownloadError, TeslaApiError, TeslaAuthenticationError, TeslaTokenImportError
 from app.models import EmailSetting, Invoice, TeslaAccount, User, Vehicle
 from app.pdf_utils import generate_demo_invoice_pdf
 from app.schemas import (
@@ -28,6 +30,7 @@ from app.schemas import (
     ManualSyncRequest,
     RegisterRequest,
     SessionResponse,
+    TeslaConnectRequest,
     TestEmailRequest,
     VehicleCreateRequest,
     VehicleResponse,
@@ -35,7 +38,16 @@ from app.schemas import (
 from app.services.emailer import DeliveryEmailService
 from app.services.storage import LocalFileStorage
 from app.services.sync import InvoiceSyncService, RuntimeServices, ensure_email_settings, serialize_invoice
-from app.services.tesla import DemoTeslaClient
+from app.services.tesla import DemoTeslaClient, get_preferred_user_account, get_tesla_account_by_mode, upsert_vehicle_for_account
+from app.services.tesla_owner import (
+    DEFAULT_DEVICE_COUNTRY,
+    DEFAULT_DEVICE_LANGUAGE,
+    DEFAULT_HTTP_LOCALE,
+    DEFAULT_OWNERSHIP_BASE_URL,
+    TeslaOwnerApiClient,
+    build_imported_tokens,
+)
+from app.token_store import encrypt_secret
 
 
 router = APIRouter(prefix="/api/v1", tags=["api"])
@@ -45,7 +57,8 @@ AVAILABLE_ACCOUNTING_TARGETS = ["DATEV", "Lexoffice", "sevDesk", "Paperless", "D
 
 def _runtime_services() -> RuntimeServices:
     return RuntimeServices(
-        tesla_client=DemoTeslaClient(),
+        demo_tesla_client=DemoTeslaClient(),
+        owner_tesla_client=TeslaOwnerApiClient(),
         storage=LocalFileStorage(settings.data_dir),
         emailer=DeliveryEmailService(settings.data_dir, settings),
     )
@@ -57,7 +70,7 @@ def _load_user(db: Session, user_id: int) -> User | None:
         .where(User.id == user_id)
         .options(
             selectinload(User.tesla_accounts).selectinload(TeslaAccount.vehicles),
-            selectinload(User.vehicles),
+            selectinload(User.vehicles).selectinload(Vehicle.tesla_account),
             selectinload(User.email_settings),
         )
     )
@@ -71,8 +84,23 @@ def _get_current_user(request: Request, db: Session) -> User:
     return user
 
 
+def _active_sync_account(user: User) -> TeslaAccount | None:
+    owner_account = next((account for account in user.tesla_accounts if account.mode == "owner_api"), None)
+    if owner_account is not None:
+        return owner_account
+    if settings.demo_mode:
+        return next((account for account in user.tesla_accounts if account.mode == "demo"), None)
+    return None
+
+
+def _active_sync_mode(user: User) -> str:
+    account = _active_sync_account(user)
+    return account.mode if account is not None else "none"
+
+
 def _serialize_current_user(db: Session, user: User) -> CurrentUserResponse:
-    account = user.tesla_accounts[0] if user.tesla_accounts else None
+    account = _active_sync_account(user)
+    owner_account = next((item for item in user.tesla_accounts if item.mode == "owner_api"), None)
     recipients = (
         [item.strip() for item in user.email_settings.recipients_csv.split(",") if item.strip()]
         if user.email_settings and user.email_settings.recipients_csv
@@ -104,9 +132,15 @@ def _serialize_current_user(db: Session, user: User) -> CurrentUserResponse:
                 vin=vehicle.vin,
                 nickname=vehicle.nickname,
                 model=vehicle.model,
+                account_mode=vehicle.tesla_account.mode if vehicle.tesla_account else "demo",
             )
             for vehicle in sorted(user.vehicles, key=lambda item: item.id)
         ],
+        active_sync_mode=_active_sync_mode(user),
+        demo_mode_enabled=settings.demo_mode,
+        tesla_connected=owner_account is not None and bool(owner_account.refresh_token or owner_account.access_token),
+        tesla_account_email=owner_account.tesla_account_email if owner_account else None,
+        tesla_last_error=owner_account.last_error if owner_account else None,
     )
 
 
@@ -181,6 +215,73 @@ def me(request: Request, db: Session = Depends(get_db_session)) -> CurrentUserRe
     return _serialize_current_user(db, user)
 
 
+@router.post("/tesla/connect", summary="Store Tesla owner tokens for live invoice sync")
+def connect_tesla(
+    payload: TeslaConnectRequest,
+    request: Request,
+    db: Session = Depends(get_db_session),
+) -> dict[str, object]:
+    user = _get_current_user(request, db)
+
+    try:
+        imported_tokens = build_imported_tokens(
+            tesla_account_email=payload.tesla_account_email,
+            cache_json=payload.cache_json,
+            access_token=payload.access_token,
+            refresh_token=payload.refresh_token,
+            auth_base_url=payload.auth_base_url,
+        )
+    except TeslaTokenImportError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    account = get_tesla_account_by_mode(db, user, "owner_api")
+    if account is None:
+        email_slug = hashlib.sha1(imported_tokens.tesla_account_email.encode("utf-8")).hexdigest()[:12]
+        account = TeslaAccount(
+            user_id=user.id,
+            tesla_account_id=f"owner-account-{email_slug}",
+            mode="owner_api",
+        )
+
+    account.tesla_account_email = imported_tokens.tesla_account_email
+    account.access_token = encrypt_secret(imported_tokens.access_token)
+    account.refresh_token = encrypt_secret(imported_tokens.refresh_token)
+    account.expires_at = imported_tokens.expires_at
+    account.auth_base_url = imported_tokens.auth_base_url
+    account.ownership_base_url = payload.ownership_base_url or DEFAULT_OWNERSHIP_BASE_URL
+    account.device_language = payload.device_language or DEFAULT_DEVICE_LANGUAGE
+    account.device_country = payload.device_country or DEFAULT_DEVICE_COUNTRY
+    account.http_locale = payload.http_locale or DEFAULT_HTTP_LOCALE
+    account.last_error = None
+    db.add(account)
+    db.flush()
+
+    try:
+        TeslaOwnerApiClient().ensure_valid_access_token(account)
+    except TeslaAuthenticationError as exc:
+        account.last_error = str(exc)
+        db.add(account)
+        db.commit()
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except TeslaApiError as exc:
+        account.last_error = str(exc)
+        db.add(account)
+        db.commit()
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+    db.add(account)
+    db.commit()
+    db.refresh(account)
+    return {
+        "message": (
+            "Tesla-Zugang wurde gespeichert. Fuehre jetzt einen Live-Sync fuer deine VINs aus, "
+            "um echte Rechnungen zu laden."
+        ),
+        "tesla_account_email": account.tesla_account_email,
+        "mode": account.mode,
+    }
+
+
 @router.post("/vehicles", response_model=VehicleResponse, summary="Add a VIN to the current account")
 def add_vehicle(
     payload: VehicleCreateRequest,
@@ -188,10 +289,20 @@ def add_vehicle(
     db: Session = Depends(get_db_session),
 ) -> VehicleResponse:
     user = _get_current_user(request, db)
-    vehicle = DemoTeslaClient().upsert_vehicle(db, user, payload.vin, payload.nickname)
+    try:
+        account = get_preferred_user_account(db, user, allow_demo=settings.demo_mode)
+        vehicle = upsert_vehicle_for_account(db, user, account, payload.vin, payload.nickname, model="Tesla")
+    except (ValueError, TeslaAuthenticationError) as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     db.commit()
     db.refresh(vehicle)
-    return VehicleResponse(id=vehicle.id, vin=vehicle.vin, nickname=vehicle.nickname, model=vehicle.model)
+    return VehicleResponse(
+        id=vehicle.id,
+        vin=vehicle.vin,
+        nickname=vehicle.nickname,
+        model=vehicle.model,
+        account_mode=vehicle.tesla_account.mode,
+    )
 
 
 @router.delete("/vehicles/{vehicle_id}", summary="Remove one of the current user's VINs")
@@ -284,24 +395,24 @@ def run_sync(
     db: Session = Depends(get_db_session),
 ) -> dict[str, object]:
     user = _get_current_user(request, db)
-    if not user.vehicles:
-        raise HTTPException(
-            status_code=400,
-            detail="Bitte zuerst mindestens eine VIN anlegen, bevor du Rechnungen testen kannst.",
-        )
 
     sync_service = InvoiceSyncService(db, _runtime_services())
     try:
         summary = sync_service.sync_user(user, manual_demo_invoice=payload.include_fresh_demo_invoice)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except TeslaAuthenticationError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except (TeslaApiError, InvoiceDownloadError) as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
 
     return {
-        "message": "Sync wurde erfolgreich ausgeführt.",
+        "message": "Sync wurde erfolgreich ausgefuehrt.",
         "created_count": summary.created_count,
         "skipped_count": summary.skipped_count,
         "emailed_recipients": summary.emailed_recipients,
         "delivery_mode": summary.delivery_mode,
+        "sync_mode": summary.sync_mode,
     }
 
 

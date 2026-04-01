@@ -1,7 +1,7 @@
 <!--
 Purpose: Explain the MVP and offer the shortest path into the interactive demo.
 Input/Output: The user reads this page before opening the dashboard.
-Invariants: The text stays aligned with the current MVP scope: demo Tesla source, real processing flow.
+Invariants: The text stays aligned with the current build: real Tesla import via token/cache plus safe demo fallback.
 Debug: If the product description becomes outdated, update this page and the README together.
 -->
 
@@ -10,11 +10,11 @@ Debug: If the product description becomes outdated, update this page and the REA
   <section class="hero">
     <article class="panel">
       <p class="eyebrow">Feberdin Demo Build</p>
-      <h1>Registrieren, VINs hinterlegen und Tesla-Rechnungen als Testversand pruefen.</h1>
+      <h1>Registrieren, VINs hinterlegen und Tesla-Rechnungen mit Demo- oder Live-Quelle testen.</h1>
       <p class="lead">
         Diese Testversion bildet bereits den kuenftigen SaaS-Flow ab:
-        Konto erstellen, mehrere VINs pflegen, Ziel-E-Mail definieren, Demo-Rechnungen erzeugen
-        und den Versand mit echtem SMTP oder Outbox-Log pruefen.
+        Konto erstellen, mehrere VINs pflegen, Ziel-E-Mail definieren, Tesla-Zugang importieren,
+        reale oder Demo-Rechnungen erzeugen und den Versand mit echtem SMTP oder Outbox-Log pruefen.
       </p>
       <div class="button-row">
         <a class="button-link primary" href="{% if is_authenticated %}/dashboard{% else %}/auth{% endif %}">
@@ -25,6 +25,7 @@ Debug: If the product description becomes outdated, update this page and the REA
       <ul class="feature-list">
         <li class="feature-item"><strong>Nutzerkonten:</strong> Registrierung und Login laufen bereits ueber die Web-App.</li>
         <li class="feature-item"><strong>VIN-Verwaltung:</strong> mehrere Fahrzeuge koennen einem Konto zugeordnet werden.</li>
+        <li class="feature-item"><strong>Live-Tesla:</strong> TeslaPy-/tesla_ha-Cache oder Tesla-Tokens koennen im Dashboard importiert werden.</li>
         <li class="feature-item"><strong>E-Mail-Test:</strong> Rechnungen koennen an echte SMTP-Empfaenger oder in das Outbox-Log geschickt werden.</li>
       </ul>
     </article>
@@ -33,10 +34,11 @@ Debug: If the product description becomes outdated, update this page and the REA
       <h2>Was du direkt testen kannst</h2>
       <ol class="steps-list">
         <li class="step-item">Konto registrieren oder einloggen</li>
+        <li class="step-item">optional Tesla-Zugang per Cache oder Token importieren</li>
         <li class="step-item">eine oder mehrere VINs hinterlegen</li>
         <li class="step-item">Empfaenger und Buchhaltungsziele speichern</li>
         <li class="step-item">Testrechnung per Mail senden</li>
-        <li class="step-item">Demo-Sync ausloesen und PDF-Rechnungen herunterladen</li>
+        <li class="step-item">Sync ausloesen und PDF-Rechnungen herunterladen</li>
       </ol>
     </aside>
   </section>

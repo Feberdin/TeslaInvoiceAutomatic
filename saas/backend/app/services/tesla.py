@@ -1,8 +1,8 @@
 """
-Purpose: Provide the Tesla integration boundary and a demo implementation for local testing.
-Input/Output: Creates demo accounts and vehicles, returns charging sessions, and generates invoice PDFs.
-Invariants: Demo IDs stay deterministic per user, while manual sync can add one fresh invoice for visible testing.
-Debug: If no invoices are created, inspect the sessions returned by `list_recent_sessions`.
+Purpose: Provide reusable Tesla account and vehicle helpers plus the demo Tesla implementation.
+Input/Output: Creates demo accounts, links VINs to the active Tesla account and returns demo charging sessions or PDFs.
+Invariants: Demo IDs stay deterministic per user, VIN uniqueness is enforced across users and manual sync can add one fresh invoice for visible testing.
+Debug: If a VIN ends up on the wrong Tesla mode, inspect `upsert_vehicle_for_account` and the selected account mode before looking at the UI.
 """
 
 from __future__ import annotations
@@ -14,50 +14,100 @@ from decimal import Decimal
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.errors import TeslaAuthenticationError
 from app.domain import ChargingSession
 from app.models import TeslaAccount, User, Vehicle
 from app.pdf_utils import generate_demo_invoice_pdf
 from app.utils import normalize_email, validate_vin
 
 
+def get_tesla_account_by_mode(db: Session, user: User, mode: str) -> TeslaAccount | None:
+    return db.scalar(select(TeslaAccount).where(TeslaAccount.user_id == user.id, TeslaAccount.mode == mode))
+
+
+def get_preferred_user_account(db: Session, user: User, *, allow_demo: bool) -> TeslaAccount:
+    owner_account = get_tesla_account_by_mode(db, user, "owner_api")
+    if owner_account is not None:
+        return owner_account
+    if allow_demo:
+        return DemoTeslaClient().ensure_demo_account(db, user)
+    raise TeslaAuthenticationError(
+        "Fuer dieses Konto ist noch keine echte Tesla-Verbindung gespeichert. "
+        "Bitte zuerst im Dashboard Tesla-Zugangsdaten importieren."
+    )
+
+
+def upsert_vehicle_for_account(
+    db: Session,
+    user: User,
+    account: TeslaAccount,
+    vin: str,
+    nickname: str = "",
+    *,
+    model: str = "Tesla",
+    tesla_vehicle_id: str | None = None,
+) -> Vehicle:
+    """Create or relink one VIN for the chosen Tesla account.
+
+    Example:
+        - same user saved the VIN earlier in demo mode
+        - later the user connects a real Tesla account
+        - saving the VIN again relinks it from `demo` to `owner_api`
+    """
+
+    normalized_vin = validate_vin(vin)
+    existing_vehicle = db.scalar(select(Vehicle).where(Vehicle.vin == normalized_vin))
+    if existing_vehicle and existing_vehicle.user_id != user.id:
+        raise ValueError(
+            f"Die VIN {normalized_vin} ist bereits einem anderen Nutzer zugeordnet. Bitte pruefe die Eingabe."
+        )
+
+    resolved_vehicle_id = tesla_vehicle_id or f"{account.mode}-{normalized_vin.lower()}"
+    resolved_nickname = nickname.strip() or (existing_vehicle.nickname if existing_vehicle else "") or f"Tesla {normalized_vin[-4:]}"
+    resolved_model = model.strip() or (existing_vehicle.model if existing_vehicle else "") or "Tesla"
+
+    if existing_vehicle is None:
+        existing_vehicle = Vehicle(
+            user=user,
+            tesla_account=account,
+            tesla_vehicle_id=resolved_vehicle_id,
+            vin=normalized_vin,
+            model=resolved_model,
+            nickname=resolved_nickname,
+        )
+        db.add(existing_vehicle)
+    else:
+        existing_vehicle.user = user
+        existing_vehicle.tesla_account = account
+        existing_vehicle.tesla_vehicle_id = resolved_vehicle_id
+        existing_vehicle.nickname = resolved_nickname
+        existing_vehicle.model = resolved_model
+
+    db.flush()
+    return existing_vehicle
+
+
 class DemoTeslaClient:
     def ensure_demo_account(self, db: Session, user: User) -> TeslaAccount:
         email_slug = hashlib.sha1(normalize_email(user.email).encode("utf-8")).hexdigest()[:10]
         tesla_account_id = f"demo-account-{email_slug}"
-        account = db.scalar(select(TeslaAccount).where(TeslaAccount.user_id == user.id))
+        account = get_tesla_account_by_mode(db, user, "demo")
 
         if account is None:
-            account = TeslaAccount(user_id=user.id, tesla_account_id=tesla_account_id, mode="demo")
+            account = TeslaAccount(
+                user_id=user.id,
+                tesla_account_id=tesla_account_id,
+                mode="demo",
+                tesla_account_email=user.email,
+            )
             db.add(account)
             db.flush()
 
         return account
 
     def upsert_vehicle(self, db: Session, user: User, vin: str, nickname: str = "") -> Vehicle:
-        normalized_vin = validate_vin(vin)
-        existing_vehicle = db.scalar(select(Vehicle).where(Vehicle.vin == normalized_vin))
-        if existing_vehicle and existing_vehicle.user_id != user.id:
-            raise ValueError(
-                f"Die VIN {normalized_vin} ist bereits einem anderen Nutzer zugeordnet. Bitte pruefe die Eingabe."
-            )
-
         account = self.ensure_demo_account(db, user)
-        if existing_vehicle is None:
-            existing_vehicle = Vehicle(
-                user=user,
-                tesla_account=account,
-                tesla_vehicle_id=f"manual-{normalized_vin.lower()}",
-                vin=normalized_vin,
-                model="Tesla",
-                nickname=nickname.strip() or f"Tesla {normalized_vin[-4:]}",
-            )
-            db.add(existing_vehicle)
-        else:
-            existing_vehicle.tesla_account = account
-            existing_vehicle.nickname = nickname.strip() or existing_vehicle.nickname or f"Tesla {normalized_vin[-4:]}"
-
-        db.flush()
-        return existing_vehicle
+        return upsert_vehicle_for_account(db, user, account, vin, nickname, model="Tesla")
 
     def provision_demo_account(self, db: Session, user: User, vehicle_count: int) -> tuple[TeslaAccount, list[Vehicle]]:
         account = self.ensure_demo_account(db, user)

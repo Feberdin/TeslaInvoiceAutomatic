@@ -19,6 +19,7 @@ from app.services.emailer import DeliveryEmailService
 from app.services.storage import LocalFileStorage
 from app.services.sync import InvoiceSyncService, RuntimeServices
 from app.services.tesla import DemoTeslaClient
+from app.services.tesla_owner import TeslaOwnerApiClient
 
 
 settings = get_settings()
@@ -30,7 +31,8 @@ def run_worker_cycle() -> int:
     session = SessionLocal()
     try:
         runtime_services = RuntimeServices(
-            tesla_client=DemoTeslaClient(),
+            demo_tesla_client=DemoTeslaClient(),
+            owner_tesla_client=TeslaOwnerApiClient(),
             storage=LocalFileStorage(settings.data_dir),
             emailer=DeliveryEmailService(settings.data_dir, settings),
         )

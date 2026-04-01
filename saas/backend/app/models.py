@@ -1,8 +1,8 @@
 """
-Purpose: Define relational tables for users, Tesla demo accounts, vehicles, invoices and email settings.
+Purpose: Define relational tables for users, Tesla accounts, vehicles, invoices and email settings.
 Input/Output: SQLAlchemy maps these models to PostgreSQL or SQLite tables.
-Invariants: User emails and invoice IDs stay unique, invoices always belong to both a user and a vehicle.
-Debug: If persisted data looks inconsistent, start by checking the relationships and unique constraints in this file.
+Invariants: User emails and invoice IDs stay unique, invoices always belong to both a user and a vehicle, and Tesla accounts keep enough metadata to refresh real owner tokens safely.
+Debug: If persisted data looks inconsistent, start by checking the relationships, account mode fields and unique constraints in this file.
 """
 
 from __future__ import annotations
@@ -41,9 +41,16 @@ class TeslaAccount(Base):
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
     tesla_account_id: Mapped[str] = mapped_column(String(255), unique=True, index=True)
     mode: Mapped[str] = mapped_column(String(50), default="demo")
+    tesla_account_email: Mapped[str | None] = mapped_column(String(255), nullable=True)
     access_token: Mapped[str | None] = mapped_column(Text(), nullable=True)
     refresh_token: Mapped[str | None] = mapped_column(Text(), nullable=True)
     expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    auth_base_url: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    ownership_base_url: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    device_language: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    device_country: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    http_locale: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    last_error: Mapped[str | None] = mapped_column(Text(), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
     last_synced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
