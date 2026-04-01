@@ -189,6 +189,7 @@ class CurrentUserResponse(BaseModel):
     invoice_count: int
     email_recipients: list[str]
     last_synced_at: datetime | None
+    delivery_mode: str
     smtp_configured: bool
     subject_template: str
     attach_pdf: bool
@@ -205,6 +206,11 @@ class CurrentUserResponse(BaseModel):
     tesla_connection_mode: str
     preferred_live_sync_mode: str
     connected_tesla_modes: list[str]
+    google_connected: bool
+    google_email: str | None
+    google_gmail_send_enabled: bool
+    google_oauth_available: bool
+    google_oauth_start_path: str | None
     tesla_oauth_available: bool
     tesla_oauth_start_path: str | None
     tesla_owner_import_available: bool

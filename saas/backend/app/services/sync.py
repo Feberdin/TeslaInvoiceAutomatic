@@ -161,6 +161,7 @@ class InvoiceSyncService:
                 attachments,
                 from_email=from_email,
                 cc_recipients=cc_recipients,
+                google_account=user.google_account,
             )
             emailed_recipients = [*target_recipients, *cc_recipients]
 

@@ -33,6 +33,12 @@ class Settings:
     smtp_password: str
     smtp_use_tls: bool
     smtp_use_ssl: bool
+    enable_google_oauth: bool
+    google_client_id: str
+    google_client_secret: str
+    google_oauth_scope: str
+    google_oauth_redirect_path: str
+    google_oauth_prompt: str
     enable_tesla_fleet_oauth: bool
     enable_tesla_owner_import: bool
     tesla_client_id: str
@@ -65,6 +71,12 @@ def get_settings() -> Settings:
     redirect_path = os.getenv("TESLA_OAUTH_REDIRECT_PATH", "/api/v1/tesla/oauth/callback").strip() or "/api/v1/tesla/oauth/callback"
     if not redirect_path.startswith("/"):
         redirect_path = f"/{redirect_path}"
+    google_redirect_path = (
+        os.getenv("GOOGLE_OAUTH_REDIRECT_PATH", "/oauth/callback").strip()
+        or "/oauth/callback"
+    )
+    if not google_redirect_path.startswith("/"):
+        google_redirect_path = f"/{google_redirect_path}"
     sync_interval_minutes = max(int(os.getenv("SYNC_INTERVAL_MINUTES", "0") or "0"), 0)
     sync_interval_seconds = (
         sync_interval_minutes * 60
@@ -90,6 +102,15 @@ def get_settings() -> Settings:
         smtp_password=os.getenv("SMTP_PASSWORD", ""),
         smtp_use_tls=_read_bool("SMTP_USE_TLS", True),
         smtp_use_ssl=_read_bool("SMTP_USE_SSL", False),
+        enable_google_oauth=_read_bool("ENABLE_GOOGLE_OAUTH", True),
+        google_client_id=os.getenv("GOOGLE_CLIENT_ID", "").strip(),
+        google_client_secret=os.getenv("GOOGLE_CLIENT_SECRET", "").strip(),
+        google_oauth_scope=os.getenv(
+            "GOOGLE_OAUTH_SCOPE",
+            "openid email profile https://www.googleapis.com/auth/gmail.send",
+        ).strip(),
+        google_oauth_redirect_path=google_redirect_path,
+        google_oauth_prompt=os.getenv("GOOGLE_OAUTH_PROMPT", "consent select_account").strip() or "consent select_account",
         enable_tesla_fleet_oauth=_read_bool("ENABLE_TESLA_FLEET_OAUTH", True),
         enable_tesla_owner_import=_read_bool("ENABLE_TESLA_OWNER_IMPORT", True),
         tesla_client_id=os.getenv("TESLA_CLIENT_ID", "").strip(),

@@ -1,7 +1,7 @@
 """
-Purpose: Define relational tables for users, Tesla accounts, vehicles, invoices and email settings.
+Purpose: Define relational tables for users, Google accounts, Tesla accounts, vehicles, invoices and email settings.
 Input/Output: SQLAlchemy maps these models to PostgreSQL or SQLite tables.
-Invariants: User emails and invoice IDs stay unique, invoices always belong to both a user and a vehicle, and Tesla accounts keep enough metadata to refresh real owner tokens safely.
+Invariants: User emails and invoice IDs stay unique, invoices always belong to both a user and a vehicle, and OAuth-linked accounts keep enough metadata to refresh live tokens safely.
 Debug: If persisted data looks inconsistent, start by checking the relationships, account mode fields and unique constraints in this file.
 """
 
@@ -30,9 +30,33 @@ class User(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
 
     tesla_accounts: Mapped[list["TeslaAccount"]] = relationship(back_populates="user", cascade="all, delete-orphan")
+    google_account: Mapped["GoogleAccount | None"] = relationship(
+        back_populates="user",
+        uselist=False,
+        cascade="all, delete-orphan",
+    )
     vehicles: Mapped[list["Vehicle"]] = relationship(back_populates="user", cascade="all, delete-orphan")
     invoices: Mapped[list["Invoice"]] = relationship(back_populates="user", cascade="all, delete-orphan")
     email_settings: Mapped["EmailSetting | None"] = relationship(back_populates="user", uselist=False, cascade="all, delete-orphan")
+
+
+class GoogleAccount(Base):
+    __tablename__ = "google_accounts"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), unique=True, index=True)
+    google_subject: Mapped[str] = mapped_column(String(255), unique=True, index=True)
+    google_email: Mapped[str] = mapped_column(String(255), unique=True, index=True)
+    access_token: Mapped[str | None] = mapped_column(Text(), nullable=True)
+    refresh_token: Mapped[str | None] = mapped_column(Text(), nullable=True)
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    oauth_scope: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    picture_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    last_error: Mapped[str | None] = mapped_column(Text(), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow, onupdate=_utcnow)
+
+    user: Mapped["User"] = relationship(back_populates="google_account")
 
 
 class TeslaAccount(Base):

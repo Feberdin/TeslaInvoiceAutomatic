@@ -78,6 +78,29 @@ def _run_lightweight_migrations() -> None:
         if "preferred_live_sync_mode" not in user_columns:
             statements.append("ALTER TABLE users ADD COLUMN preferred_live_sync_mode VARCHAR(50) DEFAULT 'auto'")
 
+    if "google_accounts" in table_names:
+        google_columns = {column["name"] for column in inspector.get_columns("google_accounts")}
+        if "google_subject" not in google_columns:
+            statements.append("ALTER TABLE google_accounts ADD COLUMN google_subject VARCHAR(255)")
+        if "google_email" not in google_columns:
+            statements.append("ALTER TABLE google_accounts ADD COLUMN google_email VARCHAR(255)")
+        if "access_token" not in google_columns:
+            statements.append("ALTER TABLE google_accounts ADD COLUMN access_token TEXT")
+        if "refresh_token" not in google_columns:
+            statements.append("ALTER TABLE google_accounts ADD COLUMN refresh_token TEXT")
+        if "expires_at" not in google_columns:
+            statements.append("ALTER TABLE google_accounts ADD COLUMN expires_at DATETIME")
+        if "oauth_scope" not in google_columns:
+            statements.append("ALTER TABLE google_accounts ADD COLUMN oauth_scope VARCHAR(500)")
+        if "picture_url" not in google_columns:
+            statements.append("ALTER TABLE google_accounts ADD COLUMN picture_url VARCHAR(500)")
+        if "last_error" not in google_columns:
+            statements.append("ALTER TABLE google_accounts ADD COLUMN last_error TEXT")
+        if "created_at" not in google_columns:
+            statements.append("ALTER TABLE google_accounts ADD COLUMN created_at DATETIME")
+        if "updated_at" not in google_columns:
+            statements.append("ALTER TABLE google_accounts ADD COLUMN updated_at DATETIME")
+
     if "email_settings" in table_names:
         email_columns = {column["name"] for column in inspector.get_columns("email_settings")}
         if "accounting_targets_csv" not in email_columns:

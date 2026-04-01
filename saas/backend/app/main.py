@@ -17,7 +17,7 @@ from app.config import get_settings
 from app.database import create_database
 from app.logging_config import configure_logging
 from app.routes.api import router as api_router
-from app.routes.pages import router as pages_router
+from app.routes.pages import google_oauth_callback_alias, router as pages_router
 
 
 settings = get_settings()
@@ -34,6 +34,16 @@ app.add_middleware(
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 app.include_router(api_router)
 app.include_router(pages_router)
+if settings.google_oauth_redirect_path != "/oauth/callback":
+    # Why this exists:
+    # The default public callback lives at `/oauth/callback`, but operators may choose a different public
+    # Google redirect path. We register an extra alias dynamically so the configured redirect URI really exists.
+    app.add_api_route(
+        settings.google_oauth_redirect_path,
+        google_oauth_callback_alias,
+        methods=["GET"],
+        include_in_schema=False,
+    )
 
 
 @app.on_event("startup")

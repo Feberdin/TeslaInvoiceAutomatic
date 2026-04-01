@@ -84,6 +84,8 @@ function consumeQueryNotices() {
   const teslaStatus = params.get("tesla");
   const teslaError = params.get("tesla_error");
   const importedVehicles = params.get("tesla_imported_vehicles");
+  const googleStatus = params.get("google");
+  const googleError = params.get("google_error");
 
   if (teslaStatus === "connected") {
     const importedSuffix = importedVehicles ? ` (${importedVehicles} Fahrzeug(e) importiert)` : "";
@@ -93,8 +95,14 @@ function consumeQueryNotices() {
     showTeslaError(teslaError);
     showNotice(teslaError, "error");
   }
+  if (googleStatus === "connected") {
+    showNotice("Google-Konto wurde erfolgreich verbunden. Login und Gmail-Versand stehen jetzt fuer dieses Konto bereit.");
+  }
+  if (googleError) {
+    showNotice(googleError, "error");
+  }
 
-  if (teslaStatus || teslaError || importedVehicles) {
+  if (teslaStatus || teslaError || importedVehicles || googleStatus || googleError) {
     window.history.replaceState({}, document.title, "/dashboard");
   }
 }
@@ -278,6 +286,12 @@ function applyFleetTexts(profile) {
 
 function applyProfile(profile) {
   currentProfile = profile;
+  const deliveryLabel =
+    profile.delivery_mode === "gmail"
+      ? "Google Mail aktiv"
+      : profile.smtp_configured
+        ? "SMTP aktiv"
+        : "Outbox aktiv";
 
   document.getElementById("current-email").textContent = profile.email;
   document.getElementById("metric-vehicles").textContent = String(profile.vehicle_count);
@@ -286,14 +300,32 @@ function applyProfile(profile) {
     ? new Date(profile.last_synced_at).toLocaleString("de-DE")
     : "noch nie";
   document.getElementById("metric-source").textContent = modeLabel(profile.active_sync_mode);
-  document.getElementById("metric-delivery").textContent = profile.smtp_configured ? "SMTP aktiv" : "Outbox aktiv";
+  document.getElementById("metric-delivery").textContent = deliveryLabel;
 
   document.getElementById("recipients").value = profile.email_recipients.join(", ");
   document.getElementById("subject-template").value = profile.subject_template;
   document.getElementById("attach-pdf").checked = profile.attach_pdf;
   document.getElementById("employee-sender-email").value = profile.employee_sender_email || "";
 
-  document.getElementById("account-delivery-pill").textContent = profile.smtp_configured ? "SMTP aktiv" : "Outbox aktiv";
+  document.getElementById("account-delivery-pill").textContent = deliveryLabel;
+  document.getElementById("google-account-pill").textContent = profile.google_connected
+    ? `Google: ${profile.google_email || "verbunden"}`
+    : "Google nicht verbunden";
+  document.getElementById("google-delivery-pill").textContent = profile.google_gmail_send_enabled
+    ? "Gmail aktiv"
+    : profile.google_connected
+      ? "Nur Login aktiv"
+      : "Gmail nicht aktiv";
+  document.getElementById("google-auth-helper").textContent = profile.google_gmail_send_enabled
+    ? "Dieses Konto ist ueber Google verbunden und der Versand laeuft bevorzugt ueber Gmail."
+    : profile.google_connected
+      ? "Google ist fuer den Login verbunden, aber Gmail-Senden ist noch nicht aktiv. Verbinde Google erneut, wenn du die Berechtigung neu freigeben musst."
+      : "Verbinde optional Google, wenn derselbe Nutzer sich damit anmelden und Rechnungen spaeter direkt ueber Gmail versenden soll.";
+  const googleConnectButton = document.getElementById("connect-google-oauth");
+  googleConnectButton.textContent = profile.google_connected
+    ? "Google erneut fuer Login und Mail verbinden"
+    : "Mit Google anmelden und Mail freigeben";
+  googleConnectButton.disabled = !profile.google_oauth_available;
   renderAccountingOptions(
     profile.available_accounting_targets,
     profile.accounting_targets,
@@ -349,6 +381,17 @@ async function sendTestEmail() {
   );
 }
 
+function connectGoogleOauth() {
+  if (!currentProfile?.google_oauth_available || !currentProfile?.google_oauth_start_path) {
+    showNotice(
+      "Google OAuth ist auf dieser Installation noch nicht vollstaendig konfiguriert. Bitte zuerst die Betreiber-Einstellungen pruefen.",
+      "error"
+    );
+    return;
+  }
+  window.location.href = currentProfile.google_oauth_start_path;
+}
+
 function connectTeslaOauth() {
   if (!currentProfile?.tesla_oauth_available || !currentProfile?.tesla_oauth_start_path) {
     showNotice(
@@ -382,6 +425,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   document.getElementById("send-test-email").addEventListener("click", () =>
     sendTestEmail().catch((error) => showNotice(error.message, "error"))
   );
+  document.getElementById("connect-google-oauth").addEventListener("click", connectGoogleOauth);
   document.getElementById("connect-tesla-oauth").addEventListener("click", connectTeslaOauth);
   document.getElementById("run-sync").addEventListener("click", () =>
     runSync().catch((error) => showNotice(error.message, "error"))

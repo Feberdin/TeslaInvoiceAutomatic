@@ -22,9 +22,16 @@ from app.admin import user_is_admin
 from app.auth import clear_session_user, get_session_user_id, hash_password, set_session_user, verify_password
 from app.config import get_settings
 from app.database import get_db_session
-from app.errors import InvoiceDownloadError, TeslaApiError, TeslaAuthenticationError, TeslaTokenImportError
+from app.errors import (
+    GoogleApiError,
+    GoogleAuthenticationError,
+    InvoiceDownloadError,
+    TeslaApiError,
+    TeslaAuthenticationError,
+    TeslaTokenImportError,
+)
 from app.invoice_amounts import extract_amount_and_currency_from_pdf_path
-from app.models import EmailSetting, Invoice, TeslaAccount, User, Vehicle
+from app.models import EmailSetting, GoogleAccount, Invoice, TeslaAccount, User, Vehicle
 from app.pdf_utils import generate_demo_invoice_pdf
 from app.schemas import (
     CurrentUserResponse,
@@ -45,6 +52,12 @@ from app.schemas import (
     AdminRegisteredUserResponse,
 )
 from app.services.emailer import DeliveryEmailService
+from app.services.google_oauth import (
+    GoogleOAuthClient,
+    build_google_authorization_request,
+    google_gmail_send_available,
+    google_oauth_available,
+)
 from app.services.tesla_fleet import TeslaFleetApiClient, build_tesla_authorization_request, tesla_oauth_available
 from app.services.tesla_partner import TeslaPartnerAdminService
 from app.services.storage import LocalFileStorage
@@ -71,6 +84,8 @@ from app.token_store import encrypt_secret
 router = APIRouter(prefix="/api/v1", tags=["api"])
 settings = get_settings()
 AVAILABLE_ACCOUNTING_TARGETS = ["Circula", "DATEV", "Lexoffice", "sevDesk", "Paperless", "Dropbox", "Google Drive"]
+GOOGLE_OAUTH_STATE_SESSION_KEY = "google_oauth_state"
+GOOGLE_OAUTH_LINK_USER_ID_SESSION_KEY = "google_oauth_link_user_id"
 TESLA_OAUTH_STATE_SESSION_KEY = "tesla_oauth_state"
 partner_admin_service = TeslaPartnerAdminService(settings)
 logger = logging.getLogger(__name__)
@@ -91,6 +106,7 @@ def _load_user(db: Session, user_id: int) -> User | None:
         select(User)
         .where(User.id == user_id)
         .options(
+            selectinload(User.google_account),
             selectinload(User.tesla_accounts).selectinload(TeslaAccount.vehicles),
             selectinload(User.vehicles).selectinload(Vehicle.tesla_account),
             selectinload(User.email_settings),
@@ -159,8 +175,14 @@ def _selected_accounting_targets(email_settings: EmailSetting | None) -> set[str
     return {item.strip() for item in email_settings.accounting_targets_csv.split(",") if item.strip()}
 
 
+def _google_error_redirect(user_is_authenticated: bool, message: str) -> RedirectResponse:
+    target = "/dashboard" if user_is_authenticated else "/auth"
+    return RedirectResponse(f"{target}?google_error={parse.quote(message)}", status_code=303)
+
+
 def _serialize_current_user(db: Session, user: User) -> CurrentUserResponse:
     account = _active_sync_account(user)
+    google_account = user.google_account
     preferred_live_sync_mode = normalize_preferred_live_sync_mode(getattr(user, "preferred_live_sync_mode", "auto"))
     live_account = select_live_account(list(user.tesla_accounts), preferred_live_sync_mode)
     live_modes = connected_live_modes(list(user.tesla_accounts))
@@ -175,6 +197,7 @@ def _serialize_current_user(db: Session, user: User) -> CurrentUserResponse:
         else []
     )
     invoice_count = db.query(Invoice).filter(Invoice.user_id == user.id).count()
+    delivery_mode = "gmail" if google_gmail_send_available(google_account) else "smtp" if settings.smtp_host else "outbox"
 
     return CurrentUserResponse(
         email=user.email,
@@ -182,6 +205,7 @@ def _serialize_current_user(db: Session, user: User) -> CurrentUserResponse:
         invoice_count=invoice_count,
         email_recipients=recipients,
         last_synced_at=account.last_synced_at if account else None,
+        delivery_mode=delivery_mode,
         smtp_configured=bool(settings.smtp_host),
         subject_template=(
             user.email_settings.subject_template if user.email_settings else "Neue Tesla-Rechnungen fuer {email}"
@@ -209,6 +233,11 @@ def _serialize_current_user(db: Session, user: User) -> CurrentUserResponse:
         tesla_connection_mode=live_account.mode if live_account else "none",
         preferred_live_sync_mode=preferred_live_sync_mode,
         connected_tesla_modes=live_modes,
+        google_connected=google_account is not None,
+        google_email=google_account.google_email if google_account else None,
+        google_gmail_send_enabled=google_gmail_send_available(google_account),
+        google_oauth_available=google_oauth_available(settings),
+        google_oauth_start_path="/api/v1/auth/google/start" if google_oauth_available(settings) else None,
         tesla_oauth_available=tesla_oauth_available(settings),
         tesla_oauth_start_path="/api/v1/tesla/oauth/start" if tesla_oauth_available(settings) else None,
         tesla_owner_import_available=settings.enable_tesla_owner_import,
@@ -315,6 +344,123 @@ def session_state(request: Request, db: Session = Depends(get_db_session)) -> Se
         return SessionResponse(authenticated=False, email=None)
 
     return SessionResponse(authenticated=True, email=user.email)
+
+
+@router.get("/auth/google/start", summary="Redirect the browser into Google OAuth for login and optional Gmail sending")
+def start_google_oauth(request: Request, db: Session = Depends(get_db_session)) -> RedirectResponse:
+    current_user_id = request.session.get("user_id")
+    user = _load_user(db, current_user_id) if isinstance(current_user_id, int) else None
+
+    try:
+        authorization_request = build_google_authorization_request(settings)
+    except GoogleAuthenticationError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    request.session[GOOGLE_OAUTH_STATE_SESSION_KEY] = authorization_request.state
+    if user is not None:
+        request.session[GOOGLE_OAUTH_LINK_USER_ID_SESSION_KEY] = user.id
+    else:
+        request.session.pop(GOOGLE_OAUTH_LINK_USER_ID_SESSION_KEY, None)
+    return RedirectResponse(authorization_request.url, status_code=303)
+
+
+@router.get("/auth/google/callback", summary="Handle Google OAuth for login and Gmail sending")
+def google_oauth_callback(
+    request: Request,
+    code: str | None = None,
+    state: str | None = None,
+    error: str | None = None,
+    error_description: str | None = None,
+    db: Session = Depends(get_db_session),
+) -> RedirectResponse:
+    current_user_id = request.session.get("user_id")
+    link_user_id = request.session.get(GOOGLE_OAUTH_LINK_USER_ID_SESSION_KEY)
+    expected_state = request.session.get(GOOGLE_OAUTH_STATE_SESSION_KEY)
+    request.session.pop(GOOGLE_OAUTH_STATE_SESSION_KEY, None)
+    request.session.pop(GOOGLE_OAUTH_LINK_USER_ID_SESSION_KEY, None)
+
+    initiating_user = None
+    for candidate_user_id in (link_user_id, current_user_id):
+        if isinstance(candidate_user_id, int):
+            initiating_user = _load_user(db, candidate_user_id)
+            if initiating_user is not None:
+                break
+
+    if error:
+        return _google_error_redirect(initiating_user is not None, error_description or error)
+    if not code:
+        return _google_error_redirect(
+            initiating_user is not None,
+            "Google hat keinen OAuth-Code zurueckgegeben. Bitte den Login erneut starten.",
+        )
+    if not state or state != expected_state:
+        return _google_error_redirect(
+            initiating_user is not None,
+            "Die Google-OAuth-Antwort enthaelt einen ungueltigen State. Bitte den Login erneut starten.",
+        )
+
+    google_client = GoogleOAuthClient(settings)
+    try:
+        token_bundle = google_client.exchange_authorization_code(code)
+        profile = google_client.fetch_user_profile(token_bundle.access_token)
+    except (GoogleAuthenticationError, GoogleApiError) as exc:
+        return _google_error_redirect(initiating_user is not None, str(exc))
+
+    if initiating_user is not None and initiating_user.email != profile.email:
+        return _google_error_redirect(
+            True,
+            "Das aktuell eingeloggte Konto nutzt eine andere E-Mail-Adresse als dein Google-Konto. "
+            "Bitte melde dich entweder mit derselben Adresse an oder logge dich vorher aus.",
+        )
+
+    google_account_owner = db.scalar(select(GoogleAccount).where(GoogleAccount.google_subject == profile.subject))
+    if google_account_owner is not None and initiating_user is not None and google_account_owner.user_id != initiating_user.id:
+        return _google_error_redirect(
+            True,
+            "Dieses Google-Konto ist bereits mit einem anderen TeslaInvoiceAutomatic-Konto verbunden.",
+        )
+
+    if google_account_owner is not None and initiating_user is None:
+        target_user = google_account_owner.user
+    elif initiating_user is not None:
+        target_user = initiating_user
+    else:
+        target_user = db.scalar(select(User).where(User.email == profile.email))
+        if target_user is None:
+            target_user = User(email=profile.email, password_hash=None, subscription_plan="basic")
+            db.add(target_user)
+            db.flush()
+
+    if target_user is None:
+        return _google_error_redirect(False, "Google-Konto konnte keinem lokalen Benutzer zugeordnet werden.")
+
+    google_account = target_user.google_account
+    if google_account is None:
+        google_account = GoogleAccount(user_id=target_user.id, google_subject=profile.subject, google_email=profile.email)
+    elif google_account.google_subject != profile.subject:
+        google_account.google_subject = profile.subject
+
+    google_account.google_email = profile.email
+    google_account.access_token = encrypt_secret(token_bundle.access_token)
+    previous_refresh_token = google_account.refresh_token
+    google_account.refresh_token = encrypt_secret(token_bundle.refresh_token) or previous_refresh_token
+    google_account.expires_at = token_bundle.expires_at
+    google_account.oauth_scope = token_bundle.scope or settings.google_oauth_scope
+    google_account.picture_url = profile.picture_url
+    google_account.last_error = None
+
+    email_settings = ensure_email_settings(db, target_user, default_recipient=target_user.email)
+    if not email_settings.recipients_csv:
+        email_settings.recipients_csv = target_user.email
+
+    db.add(target_user)
+    db.add(email_settings)
+    db.add(google_account)
+    db.commit()
+    db.refresh(target_user)
+
+    set_session_user(request, target_user.id)
+    return RedirectResponse("/dashboard?google=connected", status_code=303)
 
 
 @router.get("/me", response_model=CurrentUserResponse, summary="Return dashboard data for the logged-in user")
@@ -782,6 +928,7 @@ def send_test_email(
         attachment_paths=[pdf_path],
         from_email=from_email,
         cc_recipients=cc_recipients,
+        google_account=user.google_account,
     )
 
     return {

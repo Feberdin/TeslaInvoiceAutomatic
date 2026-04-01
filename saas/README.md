@@ -3,9 +3,11 @@
 Diese Version ist ein Docker-first Teststand fuer Unraid und lokale Docker-Umgebungen. Der aktuelle Fokus liegt auf einem testbaren SaaS-Nutzerfluss mit echtem Mailversand und zwei echten Tesla-Verbindungswegen:
 
 - Konto registrieren und einloggen
+- optional denselben Nutzer direkt mit Google anmelden
 - eine oder mehrere VINs hinterlegen
 - Tesla per offiziellem Fleet OAuth verbinden
 - oder Tesla per inoffiziellem Token-Import anbinden
+- Google Mail fuer Versand ueber denselben Google-Account freigeben
 - Betreiber koennen im separaten Admin-Menue den Tesla-Fleet-Public-Key erzeugen und die Partner-App registrieren
 - Betreiber sehen im Admin-Menue alle registrierten Konten und deren Fahrzeuge
 - Empfaenger fuer Rechnungen speichern
@@ -20,15 +22,16 @@ Wichtig: Diese Build-Stufe unterstuetzt bewusst beide Varianten parallel. Der Fl
 
 1. FastAPI liefert Landingpage, Registrierung, Login, Dashboard und JSON-API.
 2. Session-Cookies halten den angemeldeten Nutzer im Browser, damit VINs und Rechnungen nicht ueber E-Mail-Felder verwechselt werden.
-3. Pro Nutzer koennen mehrere VINs gespeichert werden.
-4. Ein offizieller Tesla-Fleet-Client startet den OAuth-Login, tauscht den Callback-Code gegen Tokens und ruft pro VIN echte Charging-Invoices ab.
-5. Ein inoffizieller Owner-Token-/Cache-Import bleibt als Self-Hosted-Weg ohne Fleet-Billing verfuegbar, liegt fuer Beta-Tests aber nur im Admin-Debug-Menue.
-6. Betreiber koennen im separaten Admin-Menue den Tesla-Fleet-Public-Key erzeugen, unter `/.well-known/...` ausliefern und den Tesla-Partner-Register-Call fuer die Region ausloesen.
-7. Der Hintergrundsync laeuft ueber einen konfigurierbaren Docker-/Unraid-Intervall (`SYNC_INTERVAL_MINUTES` bevorzugt `SYNC_INTERVAL_SECONDS`).
-8. Wenn kein echter Tesla-Zugang verbunden ist, erzeugt der Demo-Tesla-Adapter pro VIN nachvollziehbare Test-Rechnungen.
-9. Rechnungen landen im Datenverzeichnis und im Dashboard-Archiv.
-10. E-Mails gehen entweder ueber echten SMTP oder nachvollziehbar in `email-outbox.log`.
-11. Circula ist als erster einfacher Buchhaltungsweg implementiert. Weitere Ziele bleiben sichtbar, aber klar als noch nicht umgesetzt markiert.
+3. Google OAuth kann denselben Account gleichzeitig fuer App-Login und Gmail-Versand freischalten.
+4. Pro Nutzer koennen mehrere VINs gespeichert werden.
+5. Ein offizieller Tesla-Fleet-Client startet den OAuth-Login, tauscht den Callback-Code gegen Tokens und ruft pro VIN echte Charging-Invoices ab.
+6. Ein inoffizieller Owner-Token-/Cache-Import bleibt als Self-Hosted-Weg ohne Fleet-Billing verfuegbar, liegt fuer Beta-Tests aber nur im Admin-Debug-Menue.
+7. Betreiber koennen im separaten Admin-Menue den Tesla-Fleet-Public-Key erzeugen, unter `/.well-known/...` ausliefern und den Tesla-Partner-Register-Call fuer die Region ausloesen.
+8. Der Hintergrundsync laeuft ueber einen konfigurierbaren Docker-/Unraid-Intervall (`SYNC_INTERVAL_MINUTES` bevorzugt `SYNC_INTERVAL_SECONDS`).
+9. Wenn kein echter Tesla-Zugang verbunden ist, erzeugt der Demo-Tesla-Adapter pro VIN nachvollziehbare Test-Rechnungen.
+10. Rechnungen landen im Datenverzeichnis und im Dashboard-Archiv.
+11. E-Mails gehen bevorzugt ueber Google Mail, sonst ueber echten SMTP oder nachvollziehbar in `email-outbox.log`.
+12. Circula ist als erster einfacher Buchhaltungsweg implementiert. Weitere Ziele bleiben sichtbar, aber klar als noch nicht umgesetzt markiert.
 
 ## Annahmen
 
@@ -41,6 +44,7 @@ Wichtig: Diese Build-Stufe unterstuetzt bewusst beide Varianten parallel. Der Fl
 ## Features
 
 - Registrierung und Login per E-Mail + Passwort
+- Google OAuth fuer kombinierten Login plus Gmail-Versand mit demselben Konto
 - Session-basierter Dashboard-Zugang
 - mehrere VINs pro Nutzer
 - offizieller Tesla-Fleet-Login direkt aus dem Dashboard
@@ -96,6 +100,7 @@ Wichtig: Diese Build-Stufe unterstuetzt bewusst beide Varianten parallel. Der Fl
     │   │   └── pages.py
     │   ├── services
     │   │   ├── emailer.py
+    │   │   ├── google_oauth.py
     │   │   ├── storage.py
     │   │   ├── sync.py
     │   │   ├── tesla.py
@@ -116,6 +121,7 @@ Wichtig: Diese Build-Stufe unterstuetzt bewusst beide Varianten parallel. Der Fl
     └── tests
         ├── test_auth_and_vin.py
         ├── test_core_logic.py
+        ├── test_google_oauth.py
         ├── test_invoice_amounts.py
         ├── test_pdf_and_validation.py
         ├── test_tesla_fleet.py
@@ -127,7 +133,11 @@ Wichtig: Diese Build-Stufe unterstuetzt bewusst beide Varianten parallel. Der Fl
 
 ### `backend/app/routes/api.py`
 
-Verarbeitet Registrierung, Login, Session, Tesla OAuth, manuellen Tesla-Import, VIN-Anlage, Versand-Einstellungen, Testmail, Sync und Rechnungsdownload.
+Verarbeitet Registrierung, lokalen Login, Google OAuth, Session, Tesla OAuth, manuellen Tesla-Import, VIN-Anlage, Versand-Einstellungen, Testmail, Sync und Rechnungsdownload.
+
+### `backend/app/services/google_oauth.py`
+
+Startet den Google-Consent-Screen, tauscht den OAuth-Code gegen Tokens, liest das Google-Benutzerprofil und sendet ueber Gmail API, wenn derselbe Nutzer Google Mail freigegeben hat.
 
 ### `backend/app/services/tesla_fleet.py`
 
@@ -147,7 +157,7 @@ Waehlt automatisch zwischen echtem Tesla-Sync und Demo-Fallback, speichert PDFs 
 
 ### `backend/app/services/emailer.py`
 
-Schreibt jede ausgehende Nachricht zusaetzlich ins Outbox-Log und kann bei gesetzten SMTP-Variablen echte E-Mails verschicken.
+Schreibt jede ausgehende Nachricht zusaetzlich ins Outbox-Log und priorisiert Google Mail vor SMTP, sobald der Nutzer denselben Google-Account fuer Versand freigegeben hat.
 
 ### `backend/app/templates/dashboard.html`
 
@@ -173,6 +183,12 @@ SMTP_USE_SSL=false
 DEFAULT_FROM_EMAIL=no-reply@example.com
 SECRET_KEY=bitte-einen-langen-zufaelligen-wert-setzen
 SYNC_INTERVAL_MINUTES=30
+ENABLE_GOOGLE_OAUTH=true
+GOOGLE_CLIENT_ID=deine-google-client-id
+GOOGLE_CLIENT_SECRET=dein-google-client-secret
+GOOGLE_OAUTH_SCOPE=openid email profile https://www.googleapis.com/auth/gmail.send
+GOOGLE_OAUTH_REDIRECT_PATH=/oauth/callback
+GOOGLE_OAUTH_PROMPT=consent select_account
 ENABLE_TESLA_FLEET_OAUTH=true
 ENABLE_TESLA_OWNER_IMPORT=true
 ADMIN_EMAILS=admin@example.com
@@ -197,7 +213,7 @@ http://localhost:8000
 ## Test-Flow im Browser
 
 1. `/auth` oeffnen oder auf der Startseite `Registrieren / Login` klicken
-2. neues Konto registrieren
+2. neues Konto registrieren oder `Mit Google anmelden und Gmail freigeben`
 3. im Dashboard `Offiziell mit Tesla verbinden` nutzen
 4. Versandempfaenger speichern
 5. optional `Circula` aktivieren und eine Mitarbeiter-Absenderadresse hinterlegen
@@ -246,6 +262,8 @@ Danach:
 
 - Ohne SMTP:
   Die Mail wird in `email-outbox.log` protokolliert. So kannst du Betreff, Empfaenger und Anhaenge pruefen, ohne echten Versand.
+- Mit Google:
+  Wenn ein Nutzer denselben Google-Account fuer Login und Gmail freigegeben hat, wird Gmail vor SMTP bevorzugt.
 - Mit SMTP:
   Die Testrechnung und die Sync-Zusammenfassung werden an den konfigurierten Mailserver uebergeben.
 - Mit abweichender Testadresse:
@@ -264,6 +282,7 @@ Circula ist als erster einfacher Buchhaltungsweg bereits umgesetzt:
 Wichtig:
 
 - Die Mitarbeiter-E-Mail wird ausschliesslich als sichtbarer `Von`-Absender gesetzt.
+- Wenn Google Mail verbunden ist, kann Gmail denselben Google-Account direkt als Absender nutzen. Andere Adressen funktionieren nur, wenn sie dort als Alias freigegeben sind.
 - Wenn `Circula` aktiv ist, aber keine Mitarbeiter-E-Mail hinterlegt wurde, blockiert die Validierung den Speichervorgang bewusst frueh.
 - Die anderen Buchhaltungsziele bleiben sichtbar, sind aber noch nicht implementiert.
 - Dein SMTP-Provider muss diese Adresse als erlaubten Absender akzeptieren. Manche Provider schreiben fremde `Von`-Adressen sonst wieder auf das SMTP-Konto um.
@@ -291,6 +310,12 @@ Wichtige Variablen in Unraid:
 - `SYNC_INTERVAL_MINUTES`
 - `LOG_LEVEL`
 - `DEFAULT_FROM_EMAIL`
+- `ENABLE_GOOGLE_OAUTH`
+- `GOOGLE_CLIENT_ID`
+- `GOOGLE_CLIENT_SECRET`
+- `GOOGLE_OAUTH_SCOPE`
+- `GOOGLE_OAUTH_REDIRECT_PATH`
+- `GOOGLE_OAUTH_PROMPT`
 - `ENABLE_TESLA_FLEET_OAUTH`
 - `ENABLE_TESLA_OWNER_IMPORT`
 - `ADMIN_EMAILS`
@@ -320,6 +345,22 @@ SYNC_INTERVAL_MINUTES=30
 ```
 
 Das sorgt fuer einen automatischen Abruf alle 30 Minuten.
+
+## Google Login und Gmail gemeinsam nutzen
+
+Fuer deinen Feberdin-Beta-Test ist dieser Weg jetzt vorgesehen:
+
+1. In Google Cloud OAuth aktivieren
+2. als Redirect URI exakt `https://tesla-invoice.feberdin.de/oauth/callback` eintragen
+3. in Unraid `ENABLE_GOOGLE_OAUTH=true`, `GOOGLE_CLIENT_ID` und `GOOGLE_CLIENT_SECRET` setzen
+4. Nutzer klicken auf `/auth` auf `Mit Google anmelden und Gmail freigeben`
+5. derselbe Google-Account ist danach sowohl fuer den App-Login als auch fuer Gmail-Versand hinterlegt
+
+Wichtig:
+
+- Google Mail wird im Versand automatisch vor SMTP bevorzugt, sobald die Gmail-Berechtigung vorhanden ist.
+- Gmail kann dabei sauber als das verbundene Google-Konto oder als dort freigegebener Alias senden.
+- Wenn du lokal per Passwort einsteigst, kannst du Google spaeter im Dashboard immer noch nachtraeglich verknuepfen.
 
 ## Tests lokal ausfuehren
 
@@ -367,6 +408,15 @@ Pruefen:
 - ist `SECRET_KEY` gesetzt?
 - blockiert ein Reverse Proxy Cookies?
 - ist die Browser-Session noch gueltig?
+
+### Fehler: Google Login oder Gmail-Freigabe startet nicht
+
+Pruefen:
+
+- ist `ENABLE_GOOGLE_OAUTH=true` gesetzt?
+- sind `GOOGLE_CLIENT_ID` und `GOOGLE_CLIENT_SECRET` wirklich in der App angekommen?
+- passt die Google Redirect URI exakt zu `https://deine-domain.tld/oauth/callback`?
+- wird die App ueber dieselbe HTTPS-Domain aufgerufen, die auch bei Google registriert ist?
 
 ### Fehler: Testmail landet nur im Outbox-Log
 

@@ -12,12 +12,14 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from app.config import get_settings
 from app.services.emailer import DeliveryEmailService
+from app.services.google_oauth import GOOGLE_GMAIL_SEND_SCOPE
 
 try:
     from app.schemas import EmailSettingsRequest
@@ -94,6 +96,78 @@ class SettingsAndDeliveryTests(unittest.TestCase):
             self.assertIn("from=fahrer@example.com", outbox_content)
             self.assertIn("to=receipts@in.circula.com", outbox_content)
             self.assertIn("cc=user@example.com", outbox_content)
+
+    def test_google_delivery_is_preferred_over_smtp_when_connected(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            with patch.dict(
+                os.environ,
+                {
+                    "DATA_DIR": temp_dir,
+                    "DEFAULT_FROM_EMAIL": "no-reply@example.com",
+                    "SMTP_HOST": "smtp.example.com",
+                },
+                clear=False,
+            ):
+                settings = get_settings()
+
+            service = DeliveryEmailService(Path(temp_dir), settings)
+            google_account = SimpleNamespace(
+                google_email="fahrer@example.com",
+                access_token="enc::token",
+                refresh_token=None,
+                oauth_scope=f"openid email profile {GOOGLE_GMAIL_SEND_SCOPE}",
+            )
+
+            with patch.object(service.google_client, "send_message") as mocked_send:
+                delivery_mode = service.send_message(
+                    recipients=["receipts@in.circula.com"],
+                    subject="Circula via Google",
+                    body="Test body",
+                    attachment_paths=[],
+                    from_email="fahrer@example.com",
+                    cc_recipients=["user@example.com"],
+                    google_account=google_account,
+                )
+
+            self.assertEqual("gmail", delivery_mode)
+            mocked_send.assert_called_once()
+            sent_message = mocked_send.call_args.args[1]
+            self.assertEqual("fahrer@example.com", sent_message["From"])
+            outbox_content = (Path(temp_dir) / "email-outbox.log").read_text(encoding="utf-8")
+            self.assertIn("transport=gmail", outbox_content)
+
+    def test_google_delivery_defaults_from_to_connected_google_mailbox(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            with patch.dict(
+                os.environ,
+                {
+                    "DATA_DIR": temp_dir,
+                    "DEFAULT_FROM_EMAIL": "no-reply@example.com",
+                },
+                clear=False,
+            ):
+                settings = get_settings()
+
+            service = DeliveryEmailService(Path(temp_dir), settings)
+            google_account = SimpleNamespace(
+                google_email="fahrer@example.com",
+                access_token="enc::token",
+                refresh_token=None,
+                oauth_scope=f"openid email profile {GOOGLE_GMAIL_SEND_SCOPE}",
+            )
+
+            with patch.object(service.google_client, "send_message") as mocked_send:
+                delivery_mode = service.send_message(
+                    recipients=["buchhaltung@example.com"],
+                    subject="Google Default Sender",
+                    body="Test body",
+                    attachment_paths=[],
+                    google_account=google_account,
+                )
+
+            self.assertEqual("gmail", delivery_mode)
+            sent_message = mocked_send.call_args.args[1]
+            self.assertEqual("fahrer@example.com", sent_message["From"])
 
 
 if __name__ == "__main__":

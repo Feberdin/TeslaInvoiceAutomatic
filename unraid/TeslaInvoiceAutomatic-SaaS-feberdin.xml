@@ -14,6 +14,7 @@ TeslaInvoiceAutomatic SaaS Test-App fuer Unraid.
 
 Diese persoenliche Vorlage ist bereits auf `https://tesla-invoice.feberdin.de` und die Tesla Fleet API EU-Region vorbereitet:
 - Registrierung und Login
+- optional Google-Login mit demselben Konto fuer Gmail-Versand
 - VIN-Verwaltung pro Nutzer
 - offizieller Tesla-Fleet-Login fuer Endkunden
 - inoffizieller Tesla-Token-Import fuer Self-Hosted-Tests ohne Fleet-Billing
@@ -28,7 +29,7 @@ Diese persoenliche Vorlage ist bereits auf `https://tesla-invoice.feberdin.de` u
 - PDF-Rechnungen und Mail-Outbox im Volume
 
 Hinweis:
-Diese Vorlage setzt bewusst nur oeffentliche oder installationsbezogene Defaults. Das Tesla-Kundengeheimnis bleibt leer und sollte erst direkt in Unraid eingetragen werden.
+Diese Vorlage setzt bewusst nur oeffentliche oder installationsbezogene Defaults. Tesla- und Google-Kundengeheimnisse bleiben leer und sollten erst direkt in Unraid eingetragen werden.
   </Overview>
   <Category>Productivity:Tools:</Category>
   <WebUI>https://tesla-invoice.feberdin.de/auth</WebUI>
@@ -52,6 +53,12 @@ Diese Vorlage setzt bewusst nur oeffentliche oder installationsbezogene Defaults
   <Config Name="Log Level" Target="LOG_LEVEL" Default="INFO" Mode="" Description="DEBUG, INFO, WARNING oder ERROR" Type="Variable" Display="advanced" Required="true" Mask="false">INFO</Config>
   <Config Name="Default Demo User Email" Target="DEMO_USER_EMAIL" Default="demo@feberdin.local" Mode="" Description="Vorausgefuellte Demo-E-Mail im Dashboard." Type="Variable" Display="advanced" Required="true" Mask="false">demo@feberdin.local</Config>
   <Config Name="Default From E-Mail" Target="DEFAULT_FROM_EMAIL" Default="no-reply@feberdin.de" Mode="" Description="Absender fuer Testmails und Demo-Sync-Benachrichtigungen." Type="Variable" Display="always" Required="true" Mask="false">no-reply@feberdin.de</Config>
+  <Config Name="Enable Google OAuth" Target="ENABLE_GOOGLE_OAUTH" Default="true" Mode="" Description="Aktiviert kombinierten Google-Login plus optionalen Gmail-Versand mit demselben Konto." Type="Variable" Display="always" Required="false" Mask="false">true</Config>
+  <Config Name="Google Client ID" Target="GOOGLE_CLIENT_ID" Default="383053765803-jg8p55in3aqkaj6tcg69lsicpp5op6h4.apps.googleusercontent.com" Mode="" Description="Google Client ID fuer Login und Gmail-Versand." Type="Variable" Display="always" Required="false" Mask="false">383053765803-jg8p55in3aqkaj6tcg69lsicpp5op6h4.apps.googleusercontent.com</Config>
+  <Config Name="Google Client Secret" Target="GOOGLE_CLIENT_SECRET" Default="" Mode="" Description="Das Google-Kundengeheimnis bitte nur direkt in Unraid eintragen, nicht in Git speichern." Type="Variable" Display="always" Required="false" Mask="true"></Config>
+  <Config Name="Google OAuth Scope" Target="GOOGLE_OAUTH_SCOPE" Default="openid email profile https://www.googleapis.com/auth/gmail.send" Mode="" Description="Scopes fuer Google Login und Gmail-Versand." Type="Variable" Display="advanced" Required="false" Mask="false">openid email profile https://www.googleapis.com/auth/gmail.send</Config>
+  <Config Name="Google OAuth Redirect Path" Target="GOOGLE_OAUTH_REDIRECT_PATH" Default="/oauth/callback" Mode="" Description="Muss in Google Cloud exakt zu https://tesla-invoice.feberdin.de/oauth/callback passen." Type="Variable" Display="always" Required="false" Mask="false">/oauth/callback</Config>
+  <Config Name="Google OAuth Prompt" Target="GOOGLE_OAUTH_PROMPT" Default="consent select_account" Mode="" Description="Prompt fuer Google OAuth. Standard sorgt zuverlaessig fuer Refresh-Token und Kontoauswahl." Type="Variable" Display="advanced" Required="false" Mask="false">consent select_account</Config>
   <Config Name="Enable Tesla Fleet OAuth" Target="ENABLE_TESLA_FLEET_OAUTH" Default="true" Mode="" Description="Aktiviert den offiziellen Tesla Fleet Login im Dashboard." Type="Variable" Display="always" Required="false" Mask="false">true</Config>
   <Config Name="Enable Inoffiziellen Tesla Import" Target="ENABLE_TESLA_OWNER_IMPORT" Default="true" Mode="" Description="Aktiviert den inoffiziellen Token-Import ohne Fleet-Billing." Type="Variable" Display="always" Required="false" Mask="false">true</Config>
   <Config Name="Admin E-Mails" Target="ADMIN_EMAILS" Default="joachim.stiegeler@zollsoft.de" Mode="" Description="Komma-getrennte Betreiberkonten, die das separate Admin-Menue fuer Tesla Fleet Partner-Setup sehen duerfen." Type="Variable" Display="always" Required="false" Mask="false">joachim.stiegeler@zollsoft.de</Config>

@@ -40,6 +40,19 @@ Debug: If actions update the wrong user, inspect the active session and the `/ap
       <article class="panel">
         <p class="eyebrow">Versand</p>
         <h2>E-Mail und Buchhaltung</h2>
+        <div class="inline-section">
+          <h3>Google Login und Mail</h3>
+          <p id="google-auth-helper" class="helper">
+            Verbinde optional Google, wenn derselbe Nutzer sich damit anmelden und Rechnungen spaeter direkt ueber Gmail versenden soll.
+          </p>
+          <div class="inline-pills">
+            <span id="google-account-pill" class="soft-pill">Google nicht verbunden</span>
+            <span id="google-delivery-pill" class="soft-pill">Gmail nicht aktiv</span>
+          </div>
+          <div class="button-row">
+            <button id="connect-google-oauth" class="secondary" type="button">Mit Google anmelden und Mail freigeben</button>
+          </div>
+        </div>
         <label for="recipients">Empfaenger (Komma-getrennt)</label>
         <textarea id="recipients"></textarea>
         <label for="subject-template">Betreff</label>
@@ -57,13 +70,16 @@ Debug: If actions update the wrong user, inspect the active session and the `/ap
         <p class="helper">
           Wenn `Circula` aktiv ist, wird genau diese Adresse im Feld `Von` / Absender gesetzt. Circula benoetigt hier
           die Mitarbeiter-Adresse, der der Beleg spaeter zugeordnet werden soll. Wenn dein SMTP-Anbieter trotzdem
-          etwas anderes anzeigt, wird der Absender serverseitig ueberschrieben und nicht mehr von der App.
+          etwas anderes anzeigt, wird der Absender serverseitig ueberschrieben und nicht mehr von der App. Ohne dieses
+          Feld nutzt Gmail automatisch die verbundene Google-Adresse als Absender. Mit Google klappt das am saubersten,
+          wenn die Adresse dem verbundenen Google-Konto oder einer dort freigegebenen Alias-Adresse entspricht.
         </p>
         <div class="inline-section">
           <h3>Buchhaltungssysteme</h3>
           <p class="helper">
             `Circula` ist bereits aktiv und sendet neue Rechnungen an `receipts@in.circula.com`.
             Deine normalen Empfaenger laufen dabei als `CC` mit. Die oben eingetragene Mitarbeiter-Adresse erscheint als sichtbarer Absender.
+            Wenn Google Mail verbunden ist, wird dieser Weg gegenueber SMTP bevorzugt.
             Alle anderen Ziele sind aktuell nur Platzhalter und im UI entsprechend markiert.
           </p>
           <div id="accounting-options" class="pill-grid"></div>

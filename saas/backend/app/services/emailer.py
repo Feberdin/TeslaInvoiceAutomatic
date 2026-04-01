@@ -1,8 +1,8 @@
 """
-Purpose: Deliver invoice e-mails either via SMTP or at least via a local outbox log for debugging.
-Input/Output: Records every outgoing message and optionally sends it through a configured SMTP server.
-Invariants: Every recorded message contains recipients, subject and referenced attachment paths.
-Debug: If sync says an e-mail was sent, check the outbox log first and then the SMTP settings and server logs.
+Purpose: Deliver invoice e-mails via Google Mail, SMTP or at least a local outbox log for debugging.
+Input/Output: Records every outgoing message and optionally sends it through a connected Google account or a configured SMTP server.
+Invariants: Every recorded message contains recipients, subject and referenced attachment paths, and Google delivery always wins over SMTP when the user explicitly connected Gmail.
+Debug: If sync says an e-mail was sent, check the outbox log first and then the Google/SMTP settings and provider logs.
 """
 
 from __future__ import annotations
@@ -12,9 +12,14 @@ import smtplib
 from datetime import datetime, timezone
 from email.message import EmailMessage
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from app.config import Settings
+from app.errors import GoogleApiError, GoogleAuthenticationError
+from app.services.google_oauth import GoogleOAuthClient, google_gmail_send_available
 
+if TYPE_CHECKING:
+    from app.models import GoogleAccount
 
 logger = logging.getLogger(__name__)
 
@@ -29,6 +34,7 @@ class DeliveryEmailService:
         self.smtp_password = settings.smtp_password
         self.smtp_use_tls = settings.smtp_use_tls
         self.smtp_use_ssl = settings.smtp_use_ssl
+        self.google_client = GoogleOAuthClient(settings)
         self.outbox_path.parent.mkdir(parents=True, exist_ok=True)
 
     @property
@@ -44,6 +50,7 @@ class DeliveryEmailService:
         *,
         from_email: str | None = None,
         cc_recipients: list[str] | None = None,
+        google_account: "GoogleAccount | None" = None,
     ) -> str:
         return self.send_message(
             recipients,
@@ -52,6 +59,7 @@ class DeliveryEmailService:
             attachment_paths,
             from_email=from_email,
             cc_recipients=cc_recipients,
+            google_account=google_account,
         )
 
     def send_message(
@@ -63,14 +71,22 @@ class DeliveryEmailService:
         *,
         from_email: str | None = None,
         cc_recipients: list[str] | None = None,
+        google_account: "GoogleAccount | None" = None,
     ) -> str:
-        effective_from_email = from_email or self.default_from_email
+        # Why this exists:
+        # When the same Google account handles login and Gmail delivery, the most honest default sender is that
+        # Google mailbox itself. Explicit product flows such as Circula can still override this with `from_email`.
+        effective_from_email = from_email or (
+            getattr(google_account, "google_email", None) if google_gmail_send_available(google_account) else None
+        ) or self.default_from_email
         effective_cc = [recipient for recipient in (cc_recipients or []) if recipient]
+        preferred_transport = "gmail" if google_gmail_send_available(google_account) else "smtp" if self.smtp_configured else "outbox"
         timestamp = datetime.now(timezone.utc).isoformat()
         record = (
             f"[{timestamp}] from={effective_from_email} "
             f"to={','.join(recipients)} subject={subject!r} "
             f"cc={','.join(effective_cc)} "
+            f"transport={preferred_transport} "
             f"attachments={attachment_paths!r} body={body!r}\n"
         )
         with self.outbox_path.open("a", encoding="utf-8") as handle:
@@ -82,10 +98,6 @@ class DeliveryEmailService:
             len(attachment_paths),
             self.smtp_configured,
         )
-
-        if not self.smtp_configured:
-            logger.info("SMTP is not configured. Message stayed in outbox only. recipients=%s", recipients)
-            return "outbox"
 
         message = EmailMessage()
         message["From"] = effective_from_email
@@ -108,6 +120,43 @@ class DeliveryEmailService:
                 subtype="pdf",
                 filename=file_path.name,
             )
+
+        if google_gmail_send_available(google_account):
+            try:
+                logger.debug(
+                    "Attempting Google Mail delivery. google_email=%s from=%s recipients=%s cc=%s",
+                    getattr(google_account, "google_email", None),
+                    effective_from_email,
+                    recipients,
+                    effective_cc,
+                )
+                self.google_client.send_message(google_account, message)
+            except (GoogleAuthenticationError, GoogleApiError) as exc:
+                logger.exception(
+                    "Google Mail delivery failed. google_email=%s from=%s recipients=%s cc=%s",
+                    getattr(google_account, "google_email", None),
+                    effective_from_email,
+                    recipients,
+                    effective_cc,
+                )
+                raise RuntimeError(
+                    "Google Mailversand fehlgeschlagen. Bitte die Google-Verbindung im Dashboard erneut freigeben "
+                    "oder die Gmail-Berechtigung pruefen."
+                ) from exc
+
+            logger.info(
+                "Google Mail delivery succeeded. google_email=%s from=%s recipients=%s cc=%s attachments=%s",
+                getattr(google_account, "google_email", None),
+                effective_from_email,
+                recipients,
+                effective_cc,
+                len(attachment_paths),
+            )
+            return "gmail"
+
+        if not self.smtp_configured:
+            logger.info("No Google Mail or SMTP available. Message stayed in outbox only. recipients=%s", recipients)
+            return "outbox"
 
         try:
             logger.debug(

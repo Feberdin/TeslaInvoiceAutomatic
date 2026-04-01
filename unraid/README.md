@@ -10,6 +10,7 @@ Im kombinierten Repository liegt der eigentliche Anwendungscode unter `saas/`.
 - `TeslaInvoiceAutomatic-SaaS.xml`: Docker-Template fuer Unraid
 - Single-Container-Laufmodus im Python-Image
 - Registrierung, Login und Session-Cookies
+- optionaler Google-Login mit demselben Konto fuer Gmail-Versand
 - VIN-Verwaltung, Testmail und Rechnungsarchiv
 - offizieller Tesla-Fleet-Login fuer Endkunden
 - inoffizieller Tesla-Token-Import fuer Self-Hosted-Tests ohne Fleet-Billing
@@ -46,6 +47,8 @@ Ohne veroeffentlichtes Image kann Unraid zwar das Template sehen, aber den Conta
   `/mnt/cache/appdata/tesla-invoice-automatic-saas -> /data`
 - Pflichtvariablen:
   `APP_BASE_URL`, `SECRET_KEY`, `DATABASE_URL`, `DATA_DIR`, `DEMO_MODE`, `DEFAULT_FROM_EMAIL`
+- Google:
+  `ENABLE_GOOGLE_OAUTH`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_OAUTH_SCOPE`, `GOOGLE_OAUTH_REDIRECT_PATH`, `GOOGLE_OAUTH_PROMPT`
 - Hintergrundsync:
   `SYNC_INTERVAL_MINUTES` bevorzugt, `SYNC_INTERVAL_SECONDS` nur als Fallback
 - Betreiber-Menue:
@@ -63,7 +66,7 @@ Ohne veroeffentlichtes Image kann Unraid zwar das Template sehen, aber den Conta
 
 1. App installieren und starten
 2. `/auth` oeffnen
-3. Konto registrieren
+3. Konto registrieren oder `Mit Google anmelden und Gmail freigeben`
 4. im Dashboard offiziellen Fleet-Login starten
 5. Empfaenger speichern und optional `Circula` aktivieren
 6. falls Betreiber: `/admin` oeffnen fuer Testmail-Override, manuelle VINs, Demo-Cleanup und inoffiziellen Token-Import
@@ -83,6 +86,20 @@ Ohne veroeffentlichtes Image kann Unraid zwar das Template sehen, aber den Conta
   `/mnt/cache/appdata/tesla-invoice-automatic-saas/email-outbox.log`
 - SQLite:
   `/mnt/cache/appdata/tesla-invoice-automatic-saas/local_demo.db`
+
+## Google-Setup fuer Feberdin
+
+Wenn Google Login und Gmail-Versand denselben Account nutzen sollen:
+
+1. in Google Cloud `gmail.send` aktivieren
+2. als Redirect URI exakt `https://tesla-invoice.feberdin.de/oauth/callback` eintragen
+3. in Unraid `ENABLE_GOOGLE_OAUTH=true`, `GOOGLE_CLIENT_ID` und `GOOGLE_CLIENT_SECRET` setzen
+4. Nutzer melden sich anschliessend auf `/auth` ueber den Google-Button an
+
+Wichtig:
+
+- Gmail wird danach im Versand automatisch vor SMTP bevorzugt.
+- Andere sichtbare Absender funktionieren bei Gmail nur, wenn sie im Google-Konto als Alias freigegeben sind.
 
 ## Spaeter fuer Community Applications
 

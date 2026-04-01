@@ -1,7 +1,7 @@
 <!--
 Purpose: Explain the MVP and offer the shortest path into the interactive demo.
 Input/Output: The user reads this page before opening the dashboard.
-Invariants: The text stays aligned with the current build: both the official Fleet login and the unofficial token-import path are visible next to the safe demo fallback.
+Invariants: The text stays aligned with the current build: Google can cover both app login and Gmail sending, while Tesla Fleet stays the live invoice source.
 Debug: If the product description becomes outdated, update this page and the README together.
 -->
 
@@ -13,7 +13,7 @@ Debug: If the product description becomes outdated, update this page and the REA
       <h1>Registrieren, VINs hinterlegen und Tesla-Rechnungen mit echtem Tesla-Login testen.</h1>
       <p class="lead">
         Diese Testversion bildet bereits den kuenftigen SaaS-Flow ab:
-        Konto erstellen, mehrere VINs pflegen, Ziel-E-Mail definieren und dann zwischen
+        Konto lokal oder direkt mit Google erstellen, mehrere VINs pflegen, Ziel-E-Mail definieren und dann zwischen
         offiziellem Fleet-Login oder inoffiziellem Token-Import waehlen, bevor reale oder Demo-Rechnungen
         verschickt und archiviert werden.
       </p>
@@ -25,6 +25,7 @@ Debug: If the product description becomes outdated, update this page and the REA
       </div>
       <ul class="feature-list">
         <li class="feature-item"><strong>Nutzerkonten:</strong> Registrierung und Login laufen bereits ueber die Web-App.</li>
+        <li class="feature-item"><strong>Google Login:</strong> Derselbe Google-Account kann gleichzeitig fuer App-Login und Gmail-Versand freigegeben werden.</li>
         <li class="feature-item"><strong>VIN-Verwaltung:</strong> mehrere Fahrzeuge koennen einem Konto zugeordnet werden.</li>
         <li class="feature-item"><strong>Live-Tesla:</strong> Offizieller Fleet-Login fuer SaaS oder inoffizieller Token-Import fuer Self-Hosted-Tests.</li>
         <li class="feature-item"><strong>E-Mail-Test:</strong> Rechnungen koennen an echte SMTP-Empfaenger oder in das Outbox-Log geschickt werden.</li>
@@ -35,6 +36,7 @@ Debug: If the product description becomes outdated, update this page and the REA
       <h2>Was du direkt testen kannst</h2>
       <ol class="steps-list">
         <li class="step-item">Konto registrieren oder einloggen</li>
+        <li class="step-item">optional Google fuer Login und Gmail-Versand verbinden</li>
         <li class="step-item">Fleet-Login oder Token-Import waehlen</li>
         <li class="step-item">eine oder mehrere VINs hinterlegen</li>
         <li class="step-item">Empfaenger und Buchhaltungsziele speichern</li>

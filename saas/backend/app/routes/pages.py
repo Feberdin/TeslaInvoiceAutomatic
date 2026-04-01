@@ -18,6 +18,7 @@ from app.admin import user_is_admin
 from app.config import get_settings
 from app.database import get_db_session
 from app.models import User
+from app.services.google_oauth import google_oauth_available
 from app.services.tesla_partner import TeslaPartnerAdminService
 
 
@@ -66,8 +67,30 @@ def auth_page(request: Request, db: Session = Depends(get_db_session)) -> HTMLRe
         {
             **context,
             "demo_mode": settings.demo_mode,
+            "google_oauth_available": google_oauth_available(settings),
+            "google_oauth_start_path": "/api/v1/auth/google/start" if google_oauth_available(settings) else None,
         },
     )
+
+
+@router.get("/oauth/callback", include_in_schema=False)
+def google_oauth_callback_alias(request: Request) -> RedirectResponse:
+    """Keep Google Console callback URLs stable by forwarding the public callback into the API route.
+
+    Why this exists:
+    Google only redirects to the exact URI registered in the Google Cloud Console. We keep the public,
+    user-facing callback at `/oauth/callback` and forward the query string unchanged into the existing API
+    callback so the session, state and token exchange logic stay in one place.
+
+    Example:
+    `/oauth/callback?code=abc&state=xyz` -> `/api/v1/auth/google/callback?code=abc&state=xyz`
+    """
+
+    query_string = request.url.query
+    target_url = "/api/v1/auth/google/callback"
+    if query_string:
+        target_url = f"{target_url}?{query_string}"
+    return RedirectResponse(target_url, status_code=307)
 
 
 @router.get("/dashboard", response_class=HTMLResponse)

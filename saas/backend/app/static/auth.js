@@ -1,7 +1,7 @@
-/* Purpose: Handle registration and login without a frontend build step.
-Input/Output: Sends credentials to the auth API and redirects into the dashboard on success.
+/* Purpose: Handle local registration/login and the Google OAuth hand-off without a frontend build step.
+Input/Output: Sends credentials to the auth API or redirects into Google OAuth and then into the dashboard on success.
 Invariants: Success always means the session cookie is already set by the backend.
-Debug: If the redirect loops back to /auth, inspect the auth API response and browser cookies. */
+Debug: If the redirect loops back to /auth, inspect the auth API response, query-string errors and browser cookies. */
 
 async function apiRequest(path, options = {}) {
   const response = await fetch(path, {
@@ -28,7 +28,18 @@ function showNotice(message, type = "info") {
   target.hidden = false;
 }
 
+function consumeQueryNotices() {
+  const params = new URLSearchParams(window.location.search);
+  const googleError = params.get("google_error");
+  if (googleError) {
+    showNotice(googleError, "error");
+    window.history.replaceState({}, document.title, "/auth");
+  }
+}
+
 document.addEventListener("DOMContentLoaded", () => {
+  consumeQueryNotices();
+
   document.getElementById("register-form").addEventListener("submit", async (event) => {
     event.preventDefault();
 
@@ -62,4 +73,11 @@ document.addEventListener("DOMContentLoaded", () => {
       showNotice(error.message, "error");
     }
   });
+
+  const googleLoginButton = document.getElementById("google-login-button");
+  if (googleLoginButton) {
+    googleLoginButton.addEventListener("click", () => {
+      window.location.href = googleLoginButton.dataset.startPath || "/api/v1/auth/google/start";
+    });
+  }
 });
