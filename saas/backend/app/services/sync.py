@@ -18,7 +18,7 @@ from sqlalchemy.orm import Session
 from app.core_logic import build_new_invoice_candidates
 from app.config import get_settings
 from app.domain import SyncSummary
-from app.errors import InvoiceDownloadError, TeslaApiError, TeslaAuthenticationError
+from app.errors import EmailDeliveryError, InvoiceDownloadError, TeslaApiError, TeslaAuthenticationError
 from app.invoice_amounts import extract_amount_and_currency_from_pdf_bytes, extract_amount_and_currency_from_pdf_path
 from app.models import EmailSetting, Invoice, TeslaAccount, User, Vehicle
 from app.services.emailer import DeliveryEmailService
@@ -250,7 +250,7 @@ class InvoiceSyncService:
                     continue
                 summary = self.sync_user(user)
                 summaries.append((user.email, summary))
-            except (ValueError, TeslaAuthenticationError, TeslaApiError, InvoiceDownloadError) as exc:
+            except (ValueError, EmailDeliveryError, TeslaAuthenticationError, TeslaApiError, InvoiceDownloadError) as exc:
                 self.db.rollback()
                 self._store_last_error(user.id, str(exc))
                 logger.exception("Sync fuer %s ist fehlgeschlagen: %s", user.email, exc)

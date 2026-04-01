@@ -15,7 +15,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from app.config import Settings
-from app.errors import GoogleApiError, GoogleAuthenticationError
+from app.errors import EmailDeliveryError, GoogleApiError, GoogleAuthenticationError
 from app.services.google_oauth import GoogleOAuthClient, google_gmail_send_available
 
 if TYPE_CHECKING:
@@ -111,7 +111,7 @@ class DeliveryEmailService:
         for attachment_path in attachment_paths:
             file_path = Path(attachment_path)
             if not file_path.exists():
-                raise RuntimeError(
+                raise EmailDeliveryError(
                     f"Der Anhang {attachment_path} wurde fuer den E-Mail-Versand erwartet, ist aber nicht vorhanden."
                 )
             message.add_attachment(
@@ -139,9 +139,20 @@ class DeliveryEmailService:
                     recipients,
                     effective_cc,
                 )
-                raise RuntimeError(
-                    "Google Mailversand fehlgeschlagen. Bitte die Google-Verbindung im Dashboard erneut freigeben "
-                    "oder die Gmail-Berechtigung pruefen."
+                google_email = str(getattr(google_account, "google_email", "") or "").strip().lower()
+                effective_sender = (effective_from_email or "").strip().lower()
+                if google_email and effective_sender and google_email != effective_sender:
+                    raise EmailDeliveryError(
+                        "Google Mailversand wurde von Gmail abgelehnt. Die sichtbare `Von`-Adresse "
+                        f"`{effective_from_email}` passt nicht zum verbundenen Google-Konto `{google_email}`. "
+                        "Gmail akzeptiert hier nur die Google-Adresse selbst oder einen dort bereits freigegebenen Alias. "
+                        "Bitte entweder die Mitarbeiter-Adresse als Gmail-Alias einrichten oder fuer den Versand "
+                        "eine passende Absenderadresse verwenden."
+                    ) from exc
+
+                raise EmailDeliveryError(
+                    "Google Mailversand fehlgeschlagen. "
+                    f"{exc}"
                 ) from exc
 
             logger.info(
@@ -194,7 +205,7 @@ class DeliveryEmailService:
                 recipients,
                 effective_cc,
             )
-            raise RuntimeError(
+            raise EmailDeliveryError(
                 "SMTP-Versand fehlgeschlagen. Bitte Host, Port, TLS/SSL, Benutzername und Passwort in Unraid pruefen."
             ) from exc
 

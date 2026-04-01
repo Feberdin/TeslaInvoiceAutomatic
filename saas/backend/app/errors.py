@@ -34,3 +34,7 @@ class GoogleAuthenticationError(TeslaInvoiceAutomaticError):
 
 class GoogleApiError(TeslaInvoiceAutomaticError):
     """Raised when Google userinfo or Gmail API calls fail unexpectedly."""
+
+
+class EmailDeliveryError(TeslaInvoiceAutomaticError):
+    """Raised when Gmail, SMTP or a local delivery precondition blocks sending a message."""

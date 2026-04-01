@@ -23,6 +23,7 @@ from app.auth import clear_session_user, get_session_user_id, hash_password, set
 from app.config import get_settings
 from app.database import get_db_session
 from app.errors import (
+    EmailDeliveryError,
     GoogleApiError,
     GoogleAuthenticationError,
     InvoiceDownloadError,
@@ -921,14 +922,26 @@ def send_test_email(
             "Die angegebene Mitarbeiter-Adresse wird als sichtbarer Von-Absender gesetzt."
         )
 
-    delivery_mode = DeliveryEmailService(settings.data_dir, settings).send_message(
-        recipients=target_recipients,
-        subject=f"Testrechnung fuer {user.email}",
-        body=message,
-        attachment_paths=[pdf_path],
-        from_email=from_email,
-        cc_recipients=cc_recipients,
-        google_account=user.google_account,
+    try:
+        delivery_mode = DeliveryEmailService(settings.data_dir, settings).send_message(
+            recipients=target_recipients,
+            subject=f"Testrechnung fuer {user.email}",
+            body=message,
+            attachment_paths=[pdf_path],
+            from_email=from_email,
+            cc_recipients=cc_recipients,
+            google_account=user.google_account,
+        )
+    except EmailDeliveryError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    effective_from_email = (
+        from_email
+        or (
+            user.google_account.google_email
+            if google_gmail_send_available(user.google_account)
+            else settings.default_from_email
+        )
     )
 
     return {
@@ -936,7 +949,7 @@ def send_test_email(
         "delivery_mode": delivery_mode,
         "recipients": target_recipients,
         "cc_recipients": cc_recipients,
-        "from_email": from_email or settings.default_from_email,
+        "from_email": effective_from_email,
     }
 
 
@@ -952,6 +965,8 @@ def run_sync(
     try:
         summary = sync_service.sync_user(user, manual_demo_invoice=payload.include_fresh_demo_invoice)
     except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except EmailDeliveryError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except TeslaAuthenticationError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc

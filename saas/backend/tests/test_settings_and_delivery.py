@@ -18,6 +18,7 @@ from unittest.mock import patch
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from app.config import get_settings
+from app.errors import EmailDeliveryError, GoogleApiError
 from app.services.emailer import DeliveryEmailService
 from app.services.google_oauth import GOOGLE_GMAIL_SEND_SCOPE
 
@@ -168,6 +169,41 @@ class SettingsAndDeliveryTests(unittest.TestCase):
             self.assertEqual("gmail", delivery_mode)
             sent_message = mocked_send.call_args.args[1]
             self.assertEqual("fahrer@example.com", sent_message["From"])
+
+    def test_google_delivery_reports_alias_mismatch_clearly(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            with patch.dict(
+                os.environ,
+                {
+                    "DATA_DIR": temp_dir,
+                    "DEFAULT_FROM_EMAIL": "no-reply@example.com",
+                },
+                clear=False,
+            ):
+                settings = get_settings()
+
+            service = DeliveryEmailService(Path(temp_dir), settings)
+            google_account = SimpleNamespace(
+                google_email="fahrer@example.com",
+                access_token="enc::token",
+                refresh_token=None,
+                oauth_scope=f"openid email profile {GOOGLE_GMAIL_SEND_SCOPE}",
+            )
+
+            with patch.object(
+                service.google_client,
+                "send_message",
+                side_effect=GoogleApiError("Google Gmail API konnte die Nachricht nicht senden. HTTP-Status: 400."),
+            ):
+                with self.assertRaisesRegex(EmailDeliveryError, "passt nicht zum verbundenen Google-Konto"):
+                    service.send_message(
+                        recipients=["receipts@in.circula.com"],
+                        subject="Circula via Google",
+                        body="Test body",
+                        attachment_paths=[],
+                        from_email="anderer.absender@example.net",
+                        google_account=google_account,
+                    )
 
 
 if __name__ == "__main__":
