@@ -31,6 +31,11 @@ class Settings:
     smtp_password: str
     smtp_use_tls: bool
     smtp_use_ssl: bool
+    tesla_client_id: str
+    tesla_client_secret: str
+    tesla_fleet_api_base_url: str
+    tesla_oauth_scope: str
+    tesla_oauth_redirect_path: str
 
 
 def _read_bool(name: str, default: bool) -> bool:
@@ -40,6 +45,9 @@ def _read_bool(name: str, default: bool) -> bool:
 
 def get_settings() -> Settings:
     data_dir = Path(os.getenv("DATA_DIR", "./data")).expanduser()
+    redirect_path = os.getenv("TESLA_OAUTH_REDIRECT_PATH", "/api/v1/tesla/oauth/callback").strip() or "/api/v1/tesla/oauth/callback"
+    if not redirect_path.startswith("/"):
+        redirect_path = f"/{redirect_path}"
 
     return Settings(
         app_name=os.getenv("APP_NAME", "Tesla Invoice Automatic SaaS"),
@@ -59,4 +67,15 @@ def get_settings() -> Settings:
         smtp_password=os.getenv("SMTP_PASSWORD", ""),
         smtp_use_tls=_read_bool("SMTP_USE_TLS", True),
         smtp_use_ssl=_read_bool("SMTP_USE_SSL", False),
+        tesla_client_id=os.getenv("TESLA_CLIENT_ID", "").strip(),
+        tesla_client_secret=os.getenv("TESLA_CLIENT_SECRET", "").strip(),
+        tesla_fleet_api_base_url=os.getenv(
+            "TESLA_FLEET_API_BASE_URL",
+            "https://fleet-api.prd.eu.vn.cloud.tesla.com",
+        ).strip().rstrip("/"),
+        tesla_oauth_scope=os.getenv(
+            "TESLA_OAUTH_SCOPE",
+            "openid offline_access user_data vehicle_device_data vehicle_charging_cmds",
+        ).strip(),
+        tesla_oauth_redirect_path=redirect_path,
     )

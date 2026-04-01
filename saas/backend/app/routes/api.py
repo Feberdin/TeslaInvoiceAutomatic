@@ -10,9 +10,10 @@ from __future__ import annotations
 from datetime import datetime, timezone
 import hashlib
 from pathlib import Path
+from urllib import parse
 
 from fastapi import APIRouter, Depends, HTTPException, Request
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, RedirectResponse
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
@@ -36,6 +37,7 @@ from app.schemas import (
     VehicleResponse,
 )
 from app.services.emailer import DeliveryEmailService
+from app.services.tesla_fleet import TeslaFleetApiClient, build_tesla_authorization_request, tesla_oauth_available
 from app.services.storage import LocalFileStorage
 from app.services.sync import InvoiceSyncService, RuntimeServices, ensure_email_settings, serialize_invoice
 from app.services.tesla import DemoTeslaClient, get_preferred_user_account, get_tesla_account_by_mode, upsert_vehicle_for_account
@@ -53,12 +55,14 @@ from app.token_store import encrypt_secret
 router = APIRouter(prefix="/api/v1", tags=["api"])
 settings = get_settings()
 AVAILABLE_ACCOUNTING_TARGETS = ["DATEV", "Lexoffice", "sevDesk", "Paperless", "Dropbox", "Google Drive"]
+TESLA_OAUTH_STATE_SESSION_KEY = "tesla_oauth_state"
 
 
 def _runtime_services() -> RuntimeServices:
     return RuntimeServices(
         demo_tesla_client=DemoTeslaClient(),
         owner_tesla_client=TeslaOwnerApiClient(),
+        fleet_tesla_client=TeslaFleetApiClient(settings),
         storage=LocalFileStorage(settings.data_dir),
         emailer=DeliveryEmailService(settings.data_dir, settings),
     )
@@ -85,6 +89,9 @@ def _get_current_user(request: Request, db: Session) -> User:
 
 
 def _active_sync_account(user: User) -> TeslaAccount | None:
+    fleet_account = next((account for account in user.tesla_accounts if account.mode == "fleet_oauth"), None)
+    if fleet_account is not None:
+        return fleet_account
     owner_account = next((account for account in user.tesla_accounts if account.mode == "owner_api"), None)
     if owner_account is not None:
         return owner_account
@@ -98,9 +105,31 @@ def _active_sync_mode(user: User) -> str:
     return account.mode if account is not None else "none"
 
 
+def _extract_tesla_profile_email(profile_payload: dict[str, object]) -> str:
+    response_payload = profile_payload.get("response")
+    if isinstance(response_payload, dict):
+        return str(response_payload.get("email") or "").strip().lower()
+    return str(profile_payload.get("email") or "").strip().lower()
+
+
+def _extract_region_base_url(region_payload: dict[str, object]) -> str | None:
+    candidate_objects: list[object] = [region_payload, region_payload.get("response")]
+    for candidate in candidate_objects:
+        if not isinstance(candidate, dict):
+            continue
+        for key in ("fleet_api_base_url", "fleetApiBaseUrl", "base_url", "baseUrl", "api_base_url"):
+            value = str(candidate.get(key) or "").strip()
+            if value:
+                return value.rstrip("/")
+    return None
+
+
 def _serialize_current_user(db: Session, user: User) -> CurrentUserResponse:
     account = _active_sync_account(user)
-    owner_account = next((item for item in user.tesla_accounts if item.mode == "owner_api"), None)
+    live_account = next(
+        (item for item in user.tesla_accounts if item.mode in {"fleet_oauth", "owner_api"}),
+        None,
+    )
     recipients = (
         [item.strip() for item in user.email_settings.recipients_csv.split(",") if item.strip()]
         if user.email_settings and user.email_settings.recipients_csv
@@ -138,9 +167,12 @@ def _serialize_current_user(db: Session, user: User) -> CurrentUserResponse:
         ],
         active_sync_mode=_active_sync_mode(user),
         demo_mode_enabled=settings.demo_mode,
-        tesla_connected=owner_account is not None and bool(owner_account.refresh_token or owner_account.access_token),
-        tesla_account_email=owner_account.tesla_account_email if owner_account else None,
-        tesla_last_error=owner_account.last_error if owner_account else None,
+        tesla_connected=live_account is not None and bool(live_account.refresh_token or live_account.access_token),
+        tesla_account_email=live_account.tesla_account_email if live_account else None,
+        tesla_last_error=live_account.last_error if live_account else None,
+        tesla_connection_mode=live_account.mode if live_account else "none",
+        tesla_oauth_available=tesla_oauth_available(settings),
+        tesla_oauth_start_path="/api/v1/tesla/oauth/start" if tesla_oauth_available(settings) else None,
     )
 
 
@@ -213,6 +245,109 @@ def session_state(request: Request, db: Session = Depends(get_db_session)) -> Se
 def me(request: Request, db: Session = Depends(get_db_session)) -> CurrentUserResponse:
     user = _get_current_user(request, db)
     return _serialize_current_user(db, user)
+
+
+@router.get("/tesla/oauth/start", summary="Redirect the logged-in user into Tesla OAuth")
+def start_tesla_oauth(request: Request, db: Session = Depends(get_db_session)) -> RedirectResponse:
+    _get_current_user(request, db)
+
+    try:
+        authorization_request = build_tesla_authorization_request(settings)
+    except TeslaAuthenticationError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    request.session[TESLA_OAUTH_STATE_SESSION_KEY] = authorization_request.state
+    return RedirectResponse(authorization_request.url, status_code=303)
+
+
+@router.get("/tesla/oauth/callback", summary="Handle the Tesla OAuth callback and store the tokens")
+def tesla_oauth_callback(
+    request: Request,
+    code: str | None = None,
+    state: str | None = None,
+    error: str | None = None,
+    error_description: str | None = None,
+    db: Session = Depends(get_db_session),
+) -> RedirectResponse:
+    user = _get_current_user(request, db)
+
+    if error:
+        return RedirectResponse(
+            f"/dashboard?tesla_error={parse.quote(error_description or error)}",
+            status_code=303,
+        )
+    if not code:
+        return RedirectResponse("/dashboard?tesla_error=Tesla%20hat%20keinen%20Code%20zurueckgegeben.", status_code=303)
+
+    expected_state = request.session.get(TESLA_OAUTH_STATE_SESSION_KEY)
+    request.session.pop(TESLA_OAUTH_STATE_SESSION_KEY, None)
+    if not state or state != expected_state:
+        return RedirectResponse(
+            "/dashboard?tesla_error=Die%20Tesla-OAuth-Antwort%20enthaelt%20einen%20ungueltigen%20State.",
+            status_code=303,
+        )
+
+    fleet_client = TeslaFleetApiClient(settings)
+    try:
+        token_bundle = fleet_client.exchange_authorization_code(code)
+        profile_payload = fleet_client.fetch_user_profile(token_bundle.access_token, token_bundle.fleet_api_base_url)
+    except (TeslaAuthenticationError, TeslaApiError) as exc:
+        return RedirectResponse(f"/dashboard?tesla_error={parse.quote(str(exc))}", status_code=303)
+
+    profile_email = _extract_tesla_profile_email(profile_payload)
+    try:
+        region_payload = fleet_client.fetch_region(token_bundle.access_token, token_bundle.fleet_api_base_url)
+        region_base_url = _extract_region_base_url(region_payload) or token_bundle.fleet_api_base_url
+    except (TeslaAuthenticationError, TeslaApiError):
+        region_base_url = token_bundle.fleet_api_base_url
+
+    account = get_tesla_account_by_mode(db, user, "fleet_oauth")
+    if account is None:
+        email_seed = profile_email or user.email
+        email_slug = hashlib.sha1(email_seed.encode("utf-8")).hexdigest()[:12]
+        account = TeslaAccount(
+            user_id=user.id,
+            tesla_account_id=f"fleet-account-{email_slug}",
+            mode="fleet_oauth",
+        )
+
+    account.tesla_account_email = profile_email or user.email
+    account.access_token = encrypt_secret(token_bundle.access_token)
+    account.refresh_token = encrypt_secret(token_bundle.refresh_token)
+    account.expires_at = token_bundle.expires_at
+    account.auth_base_url = "https://auth.tesla.com"
+    account.fleet_api_base_url = region_base_url
+    account.oauth_scope = token_bundle.scope or settings.tesla_oauth_scope
+    account.last_error = None
+    db.add(account)
+    db.flush()
+
+    try:
+        fleet_vehicles = fleet_client.fetch_vehicles(account)
+        imported_count = 0
+        for fleet_vehicle in fleet_vehicles:
+            upsert_vehicle_for_account(
+                db,
+                user,
+                account,
+                fleet_vehicle.vin,
+                fleet_vehicle.display_name,
+                model=fleet_vehicle.model,
+                tesla_vehicle_id=fleet_vehicle.tesla_vehicle_id,
+            )
+            imported_count += 1
+    except (TeslaAuthenticationError, TeslaApiError, ValueError) as exc:
+        account.last_error = str(exc)
+        db.add(account)
+        db.commit()
+        return RedirectResponse(f"/dashboard?tesla_error={parse.quote(str(exc))}", status_code=303)
+
+    db.add(account)
+    db.commit()
+    return RedirectResponse(
+        f"/dashboard?tesla=connected&tesla_imported_vehicles={imported_count}",
+        status_code=303,
+    )
 
 
 @router.post("/tesla/connect", summary="Store Tesla owner tokens for live invoice sync")

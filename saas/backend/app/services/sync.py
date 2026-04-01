@@ -21,6 +21,7 @@ from app.domain import SyncSummary
 from app.errors import InvoiceDownloadError, TeslaApiError, TeslaAuthenticationError
 from app.models import EmailSetting, Invoice, TeslaAccount, User, Vehicle
 from app.services.emailer import DeliveryEmailService
+from app.services.tesla_fleet import TeslaFleetApiClient
 from app.services.storage import LocalFileStorage
 from app.services.tesla import DemoTeslaClient
 from app.services.tesla_owner import TeslaOwnerApiClient
@@ -34,6 +35,7 @@ settings = get_settings()
 class RuntimeServices:
     demo_tesla_client: DemoTeslaClient
     owner_tesla_client: TeslaOwnerApiClient
+    fleet_tesla_client: TeslaFleetApiClient
     storage: LocalFileStorage
     emailer: DeliveryEmailService
 
@@ -161,6 +163,10 @@ class InvoiceSyncService:
         return summaries
 
     def _resolve_sync_accounts(self, user: User) -> tuple[list[TeslaAccount], str]:
+        fleet_accounts = [account for account in user.tesla_accounts if account.mode == "fleet_oauth"]
+        if fleet_accounts:
+            return fleet_accounts, "fleet_oauth"
+
         owner_accounts = [account for account in user.tesla_accounts if account.mode == "owner_api"]
         if owner_accounts:
             return owner_accounts, "owner_api"
@@ -178,6 +184,8 @@ class InvoiceSyncService:
         *,
         fresh_seed: str | None,
     ):
+        if account.mode == "fleet_oauth":
+            return self.runtime_services.fleet_tesla_client.list_recent_sessions(account, vehicle.vin)
         if account.mode == "owner_api":
             return self.runtime_services.owner_tesla_client.list_recent_sessions(account, vehicle)
         return self.runtime_services.demo_tesla_client.list_recent_sessions(
@@ -195,6 +203,8 @@ class InvoiceSyncService:
         currency: str,
         location: str,
     ) -> bytes:
+        if account.mode == "fleet_oauth":
+            return self.runtime_services.fleet_tesla_client.download_invoice_pdf(account, invoice_id)
         if account.mode == "owner_api":
             return self.runtime_services.owner_tesla_client.download_invoice_pdf(
                 account,

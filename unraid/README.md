@@ -11,7 +11,8 @@ Im kombinierten Repository liegt der eigentliche Anwendungscode unter `saas/`.
 - Single-Container-Laufmodus im Python-Image
 - Registrierung, Login und Session-Cookies
 - VIN-Verwaltung, Testmail und Rechnungsarchiv
-- Tesla-Import ueber TeslaPy-/tesla_ha-Cache oder Tesla-Tokens
+- offizieller Tesla-OAuth-Login fuer Endkunden
+- manueller Tesla-Import nur als technischer Fallback
 - Demo-Fallback, falls noch kein echter Tesla-Zugang verbunden ist
 
 ## Wichtiger Hinweis
@@ -42,6 +43,8 @@ Ohne veroeffentlichtes Image kann Unraid zwar das Template sehen, aber den Conta
   `/mnt/cache/appdata/tesla-invoice-automatic-saas -> /data`
 - Pflichtvariablen:
   `APP_BASE_URL`, `SECRET_KEY`, `DATABASE_URL`, `DATA_DIR`, `DEMO_MODE`, `DEFAULT_FROM_EMAIL`
+- Fuer offiziellen Tesla-Login:
+  `TESLA_CLIENT_ID`, `TESLA_CLIENT_SECRET`, `TESLA_FLEET_API_BASE_URL`
 - Fuer echten Mailtest:
   `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `SMTP_USE_TLS`, `SMTP_USE_SSL`
 
@@ -50,7 +53,7 @@ Ohne veroeffentlichtes Image kann Unraid zwar das Template sehen, aber den Conta
 1. App installieren und starten
 2. `/auth` oeffnen
 3. Konto registrieren
-4. optional Tesla-Zugang im Dashboard importieren
+4. im Dashboard `Mit Tesla verbinden` klicken
 5. eine VIN hinterlegen
 6. Empfaenger speichern
 7. `Testrechnung senden` pruefen

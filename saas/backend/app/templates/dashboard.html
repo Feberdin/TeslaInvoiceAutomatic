@@ -57,7 +57,7 @@ Debug: If actions update the wrong user, inspect the active session and the `/ap
         <div class="inline-section">
           <h3>Buchhaltungssysteme (Platzhalter)</h3>
           <p class="helper">Diese Auswahl ist derzeit nur sichtbar und wird spaeter mit echten Exporten verknuepft.</p>
-        <div id="accounting-options" class="pill-grid"></div>
+          <div id="accounting-options" class="pill-grid"></div>
         </div>
         <div class="button-row">
           <button id="save-settings" class="secondary" type="button">Einstellungen speichern</button>
@@ -128,9 +128,19 @@ Debug: If actions update the wrong user, inspect the active session and the `/ap
           </div>
         </div>
         <p id="tesla-connection-help" class="helper">
-          Empfohlen: den kompletten TeslaPy-/tesla_ha-`cache.json`-Inhalt einfuegen. Alternativ kannst du ein Refresh-Token
-          und optional ein Access-Token hinterlegen.
+          Kunden sollen spaeter einfach mit Tesla einloggen koennen. Wenn die Betreiber-Konfiguration gesetzt ist,
+          startet der Button unten den offiziellen Tesla-OAuth-Flow. Der manuelle Token-Import bleibt nur als Experten-Fallback sichtbar.
         </p>
+        <div class="button-row">
+          <button id="connect-tesla-oauth" class="primary" type="button">Mit Tesla verbinden</button>
+          <button id="run-sync" class="secondary" type="button">Sync ausloesen</button>
+        </div>
+        <details class="manual-import-details">
+          <summary>Expertenmodus: Tesla-Tokens manuell importieren</summary>
+          <p class="helper">
+            Dieser Bereich ist nur fuer Migrationen oder Fehlersuche gedacht. Im normalen Kundeneinsatz sollte stattdessen der
+            offizielle Tesla-Login oben verwendet werden.
+          </p>
         <label for="tesla-account-email">Tesla Konto E-Mail</label>
         <input id="tesla-account-email" type="email" placeholder="z. B. dein.tesla.konto@example.com" />
         <label for="tesla-cache-json">TeslaPy / tesla_ha cache.json (empfohlen)</label>
@@ -152,10 +162,10 @@ Debug: If actions update the wrong user, inspect the active session and the `/ap
           Die eingegebenen Tesla-Tokens werden nur zum Speichern und Validieren verwendet. Nach erfolgreichem Speichern
           leert das Dashboard die Eingabefelder wieder.
         </p>
+        </details>
         <div id="tesla-error-box" class="notice error" hidden></div>
         <div class="button-row">
-          <button id="connect-tesla" class="primary" type="button">Tesla verbinden</button>
-          <button id="run-sync" class="secondary" type="button">Sync ausloesen</button>
+          <button id="connect-tesla" class="secondary" type="button">Manuellen Import speichern</button>
         </div>
       </article>
 

@@ -87,6 +87,8 @@ def _run_lightweight_migrations() -> None:
             statements.append("ALTER TABLE tesla_accounts ADD COLUMN tesla_account_email VARCHAR(255)")
         if "auth_base_url" not in account_columns:
             statements.append("ALTER TABLE tesla_accounts ADD COLUMN auth_base_url VARCHAR(255)")
+        if "fleet_api_base_url" not in account_columns:
+            statements.append("ALTER TABLE tesla_accounts ADD COLUMN fleet_api_base_url VARCHAR(255)")
         if "ownership_base_url" not in account_columns:
             statements.append("ALTER TABLE tesla_accounts ADD COLUMN ownership_base_url VARCHAR(255)")
         if "device_language" not in account_columns:
@@ -95,6 +97,8 @@ def _run_lightweight_migrations() -> None:
             statements.append("ALTER TABLE tesla_accounts ADD COLUMN device_country VARCHAR(16)")
         if "http_locale" not in account_columns:
             statements.append("ALTER TABLE tesla_accounts ADD COLUMN http_locale VARCHAR(32)")
+        if "oauth_scope" not in account_columns:
+            statements.append("ALTER TABLE tesla_accounts ADD COLUMN oauth_scope VARCHAR(255)")
         if "last_error" not in account_columns:
             statements.append("ALTER TABLE tesla_accounts ADD COLUMN last_error TEXT")
 

@@ -1,32 +1,33 @@
 # TeslaInvoiceAutomatic SaaS MVP
 
-Diese Version ist ein Docker-first Teststand fuer Unraid und lokale Docker-Umgebungen. Der aktuelle Fokus liegt auf einem testbaren SaaS-Nutzerfluss mit echtem Mailversand und einer live-faehigen Tesla-Anbindung per Token-/Cache-Import:
+Diese Version ist ein Docker-first Teststand fuer Unraid und lokale Docker-Umgebungen. Der aktuelle Fokus liegt auf einem testbaren SaaS-Nutzerfluss mit echtem Mailversand und einem offiziellen Tesla-Login fuer Endkunden:
 
 - Konto registrieren und einloggen
 - eine oder mehrere VINs hinterlegen
-- Tesla-Zugang per TeslaPy-/tesla_ha-Cache oder Tesla-Tokens importieren
+- Tesla per offiziellem OAuth verbinden
 - Empfaenger fuer Rechnungen speichern
 - Testrechnung per SMTP oder Outbox pruefen
 - Demo- oder Live-Rechnungen erzeugen, archivieren und herunterladen
 - Buchhaltungssysteme vorerst als sichtbare Platzhalter auswaehlen
 
-Wichtig: Echte Tesla-Rechnungen lassen sich in dieser Build-Stufe ueber importierte Tesla Owner-/TeslaPy-Tokens testen. Die offizielle Tesla Fleet OAuth-Partnerregistrierung ist damit noch nicht ersetzt, aber du kannst den realen Abruf von Charging-History und PDF-Rechnungen bereits verifizieren. `DEMO_MODE=true` bleibt als sicherer Fallback sinnvoll.
+Wichtig: Endkunden koennen sich in dieser Build-Stufe per offiziellem Tesla OAuth verbinden. Als technischer Fallback bleiben Cache-/Token-Importe im Dashboard sichtbar. `DEMO_MODE=true` bleibt als sicherer Fallback sinnvoll, bis Tesla OAuth fuer deine Installation vollstaendig eingerichtet ist.
 
 ## Kurzplan
 
 1. FastAPI liefert Landingpage, Registrierung, Login, Dashboard und JSON-API.
 2. Session-Cookies halten den angemeldeten Nutzer im Browser, damit VINs und Rechnungen nicht ueber E-Mail-Felder verwechselt werden.
 3. Pro Nutzer koennen mehrere VINs gespeichert werden.
-4. Ein Live-Tesla-Client kann Owner-/TeslaPy-Tokens refreshen und pro VIN echte Charging-Invoices abrufen.
-5. Wenn kein echter Tesla-Zugang verbunden ist, erzeugt der Demo-Tesla-Adapter pro VIN nachvollziehbare Test-Rechnungen.
-6. Rechnungen landen im Datenverzeichnis und im Dashboard-Archiv.
-7. E-Mails gehen entweder ueber echten SMTP oder nachvollziehbar in `email-outbox.log`.
-8. Buchhaltungssysteme sind bereits als UI-Platzhalter vorhanden, aber noch ohne echten Export.
+4. Ein offizieller Tesla-Fleet-Client startet den OAuth-Login, tauscht den Callback-Code gegen Tokens und ruft pro VIN echte Charging-Invoices ab.
+5. Ein manueller Token-/Cache-Import bleibt als Expertenweg fuer Migration und Fehlersuche erhalten.
+6. Wenn kein echter Tesla-Zugang verbunden ist, erzeugt der Demo-Tesla-Adapter pro VIN nachvollziehbare Test-Rechnungen.
+7. Rechnungen landen im Datenverzeichnis und im Dashboard-Archiv.
+8. E-Mails gehen entweder ueber echten SMTP oder nachvollziehbar in `email-outbox.log`.
+9. Buchhaltungssysteme sind bereits als UI-Platzhalter vorhanden, aber noch ohne echten Export.
 
 ## Annahmen
 
 - Zielsystem: Unraid mit Docker App oder lokales Docker Compose
-- Aktueller Tesla-Modus: `DEMO_MODE=true` als Fallback, echter Tesla-Zugang wird im Dashboard importiert
+- Aktueller Tesla-Modus: `DEMO_MODE=true` als Fallback, echter Tesla-Zugang wird im Dashboard per OAuth verbunden
 - Mailversand: SMTP ist optional, Outbox-Log steht immer zur Verfuegung
 - Persistenz: Unraid-App nutzt SQLite im `/data`-Volume, Docker Compose nutzt PostgreSQL
 - Reverse Proxy / HTTPS: spaeter ueber Unraid-Setup wie Nginx Proxy Manager oder Traefik
@@ -36,7 +37,8 @@ Wichtig: Echte Tesla-Rechnungen lassen sich in dieser Build-Stufe ueber importie
 - Registrierung und Login per E-Mail + Passwort
 - Session-basierter Dashboard-Zugang
 - mehrere VINs pro Nutzer
-- Tesla-Import ueber TeslaPy-/tesla_ha-`cache.json` oder manuelle Tokens
+- offizieller Tesla-OAuth-Login direkt aus dem Dashboard
+- technischer Fallback ueber TeslaPy-/tesla_ha-`cache.json` oder manuelle Tokens
 - gespeicherte Versandempfaenger pro Nutzer
 - Testrechnung an gespeicherte oder abweichende Test-Adresse
 - Live-Sync fuer echte Tesla-Rechnungen oder Demo-Sync als Fallback
@@ -83,6 +85,7 @@ Wichtig: Echte Tesla-Rechnungen lassen sich in dieser Build-Stufe ueber importie
     │   │   ├── storage.py
     │   │   ├── sync.py
     │   │   ├── tesla.py
+    │   │   ├── tesla_fleet.py
     │   │   └── tesla_owner.py
     │   ├── static
     │   │   ├── auth.js
@@ -97,6 +100,7 @@ Wichtig: Echte Tesla-Rechnungen lassen sich in dieser Build-Stufe ueber importie
         ├── test_auth_and_vin.py
         ├── test_core_logic.py
         ├── test_pdf_and_validation.py
+        ├── test_tesla_fleet.py
         └── test_tesla_owner.py
 ```
 
@@ -104,11 +108,15 @@ Wichtig: Echte Tesla-Rechnungen lassen sich in dieser Build-Stufe ueber importie
 
 ### `backend/app/routes/api.py`
 
-Verarbeitet Registrierung, Login, Session, Tesla-Import, VIN-Anlage, Versand-Einstellungen, Testmail, Sync und Rechnungsdownload.
+Verarbeitet Registrierung, Login, Session, Tesla OAuth, manuellen Tesla-Import, VIN-Anlage, Versand-Einstellungen, Testmail, Sync und Rechnungsdownload.
+
+### `backend/app/services/tesla_fleet.py`
+
+Startet den offiziellen Tesla OAuth-Flow, verarbeitet den Callback, refreshed Fleet-Tokens und ruft Tesla-Charging-History sowie PDF-Rechnungen fuer echte VINs ab.
 
 ### `backend/app/services/tesla_owner.py`
 
-Importiert TeslaPy-/tesla_ha-Caches oder manuelle Tokens, refreshed Owner-Tokens und ruft Tesla-Charging-History sowie PDF-Rechnungen fuer echte VINs ab.
+Bleibt als technischer Fallback fuer manuell importierte Tesla Owner-/TeslaPy-Tokens erhalten.
 
 ### `backend/app/services/sync.py`
 
@@ -141,6 +149,9 @@ SMTP_USE_TLS=true
 SMTP_USE_SSL=false
 DEFAULT_FROM_EMAIL=no-reply@example.com
 SECRET_KEY=bitte-einen-langen-zufaelligen-wert-setzen
+TESLA_CLIENT_ID=deine-tesla-client-id
+TESLA_CLIENT_SECRET=dein-tesla-client-secret
+TESLA_FLEET_API_BASE_URL=https://fleet-api.prd.eu.vn.cloud.tesla.com
 ```
 
 ### 2. Stack starten
@@ -159,7 +170,7 @@ http://localhost:8000
 
 1. `/auth` oeffnen oder auf der Startseite `Registrieren / Login` klicken
 2. neues Konto registrieren
-3. optional im Dashboard einen TeslaPy-/tesla_ha-Cache oder Tesla-Tokens importieren
+3. im Dashboard `Mit Tesla verbinden` klicken
 4. eine oder mehrere VINs hinterlegen
 5. Versandempfaenger speichern
 6. optional Test-E-Mail-Adresse eintragen
@@ -169,18 +180,18 @@ http://localhost:8000
 
 ## Echte Tesla-Daten testen
 
-Es gibt aktuell zwei praxistaugliche Wege:
+Es gibt aktuell zwei Wege:
 
-1. TeslaPy-/tesla_ha-Cache importieren
-   Der empfohlene Weg. Kopiere den kompletten Inhalt deiner bestehenden `cache.json` in das Dashboard-Feld `TeslaPy / tesla_ha cache.json`.
+1. Offizieller Tesla-Login
+   Der empfohlene Weg. Setze als Betreiber `TESLA_CLIENT_ID`, `TESLA_CLIENT_SECRET` und die passende `TESLA_FLEET_API_BASE_URL`. Danach klicken Endkunden im Dashboard auf `Mit Tesla verbinden`.
 
-2. Refresh-Token direkt eintragen
-   Trage im Dashboard die Tesla-Konto-E-Mail und mindestens das Refresh-Token ein. Ein Access-Token ist optional, beschleunigt aber den ersten Test.
+2. Experten-Fallback ueber Cache oder Refresh-Token
+   Nur fuer Migration oder Fehlersuche. Im Dashboard gibt es dafuer einen ausklappbaren Bereich.
 
 Danach:
 
 1. echte VIN speichern
-2. `Tesla verbinden` klicken
+2. `Mit Tesla verbinden` klicken oder den manuellen Import speichern
 3. `Tesla-Sync ausloesen` klicken
 4. Rechnungs-PDFs im Archiv oder Maileingang pruefen
 
@@ -208,6 +219,11 @@ Wichtige Variablen in Unraid:
 - `DEMO_MODE=true`
 - `LOG_LEVEL`
 - `DEFAULT_FROM_EMAIL`
+- `TESLA_CLIENT_ID`
+- `TESLA_CLIENT_SECRET`
+- `TESLA_FLEET_API_BASE_URL`
+- `TESLA_OAUTH_SCOPE`
+- `TESLA_OAUTH_REDIRECT_PATH`
 - `SMTP_HOST`
 - `SMTP_PORT`
 - `SMTP_USERNAME`
@@ -230,7 +246,7 @@ PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=backend python3 -m unittest discover -s bac
 
 ### Log-Level
 
-- `DEBUG`: zeigt zusaetzlich SMTP-Versuchsdetails, Token-Import, Tesla-Sync-Auswahl und Outbox-Schreibzugriffe
+- `DEBUG`: zeigt zusaetzlich SMTP-Versuchsdetails, Tesla-OAuth-Status, Token-Import, Tesla-Sync-Auswahl und Outbox-Schreibzugriffe
 - `INFO`: Standard fuer normalen Testbetrieb
 - `WARNING`: ungewoehnliche Situationen ohne harten Fehler
 - `ERROR`: nur Fehler

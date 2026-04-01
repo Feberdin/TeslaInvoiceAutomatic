@@ -16,6 +16,7 @@ from app.config import get_settings
 from app.database import SessionLocal, create_database
 from app.logging_config import configure_logging
 from app.services.emailer import DeliveryEmailService
+from app.services.tesla_fleet import TeslaFleetApiClient
 from app.services.storage import LocalFileStorage
 from app.services.sync import InvoiceSyncService, RuntimeServices
 from app.services.tesla import DemoTeslaClient
@@ -33,6 +34,7 @@ def run_worker_cycle() -> int:
         runtime_services = RuntimeServices(
             demo_tesla_client=DemoTeslaClient(),
             owner_tesla_client=TeslaOwnerApiClient(),
+            fleet_tesla_client=TeslaFleetApiClient(settings),
             storage=LocalFileStorage(settings.data_dir),
             emailer=DeliveryEmailService(settings.data_dir, settings),
         )

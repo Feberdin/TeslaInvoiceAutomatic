@@ -26,6 +26,9 @@ def get_tesla_account_by_mode(db: Session, user: User, mode: str) -> TeslaAccoun
 
 
 def get_preferred_user_account(db: Session, user: User, *, allow_demo: bool) -> TeslaAccount:
+    fleet_account = get_tesla_account_by_mode(db, user, "fleet_oauth")
+    if fleet_account is not None:
+        return fleet_account
     owner_account = get_tesla_account_by_mode(db, user, "owner_api")
     if owner_account is not None:
         return owner_account

@@ -168,3 +168,6 @@ class CurrentUserResponse(BaseModel):
     tesla_connected: bool
     tesla_account_email: str | None
     tesla_last_error: str | None
+    tesla_connection_mode: str
+    tesla_oauth_available: bool
+    tesla_oauth_start_path: str | None

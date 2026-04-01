@@ -15,7 +15,8 @@ TeslaInvoiceAutomatic SaaS Test-App fuer Unraid.
 Diese Unraid-App startet die aktuelle SaaS-Testversion als Einzelcontainer:
 - Registrierung und Login
 - VIN-Verwaltung pro Nutzer
-- Tesla-Import ueber TeslaPy-/tesla_ha-Cache oder Tesla-Tokens
+- offizieller Tesla-OAuth-Login fuer Endkunden
+- manueller Tesla-Import nur als technischer Fallback
 - Testrechnung per SMTP oder Outbox-Log
 - Live-Tesla-Sync fuer echte Supercharger-Rechnungen
 - Demo-Fallback, wenn noch kein echter Tesla-Zugang verbunden ist
@@ -26,7 +27,7 @@ Diese Unraid-App startet die aktuelle SaaS-Testversion als Einzelcontainer:
 - PDF-Rechnungen und Mail-Outbox im Volume
 
 Hinweis:
-Dies ist die MVP-Variante fuer Tests. Echte Tesla-Daten werden aktuell ueber importierte Owner-/TeslaPy-Tokens angebunden. Fuer spaetere produktive Nutzung mit offizieller Tesla Fleet OAuth, PostgreSQL, Redis und getrennten Services ist weiterhin eine Compose-/Multi-Container-Variante sinnvoll.
+Dies ist die MVP-Variante fuer Tests. Endkunden koennen sich per offizieller Tesla Fleet OAuth verbinden, sobald der Betreiber `TESLA_CLIENT_ID`, `TESLA_CLIENT_SECRET` und die passende Fleet-Region gesetzt hat. Fuer spaetere produktive Nutzung mit PostgreSQL, Redis und getrennten Services ist weiterhin eine Compose-/Multi-Container-Variante sinnvoll.
   </Overview>
   <Category>Productivity:Tools:</Category>
   <WebUI>http://[IP]:[PORT:8000]/auth</WebUI>
@@ -47,6 +48,11 @@ Dies ist die MVP-Variante fuer Tests. Echte Tesla-Daten werden aktuell ueber imp
   <Config Name="Log Level" Target="LOG_LEVEL" Default="INFO" Mode="" Description="DEBUG, INFO, WARNING oder ERROR" Type="Variable" Display="advanced" Required="true" Mask="false">INFO</Config>
   <Config Name="Default Demo User Email" Target="DEMO_USER_EMAIL" Default="demo@feberdin.local" Mode="" Description="Vorausgefuellte Demo-E-Mail im Dashboard." Type="Variable" Display="advanced" Required="true" Mask="false">demo@feberdin.local</Config>
   <Config Name="Default From E-Mail" Target="DEFAULT_FROM_EMAIL" Default="no-reply@deine-domain.tld" Mode="" Description="Absender fuer Testmails und Demo-Sync-Benachrichtigungen." Type="Variable" Display="always" Required="true" Mask="false">no-reply@deine-domain.tld</Config>
+  <Config Name="Tesla Client ID" Target="TESLA_CLIENT_ID" Default="" Mode="" Description="Client ID aus dem Tesla Developer Portal fuer den offiziellen Tesla-Login." Type="Variable" Display="always" Required="false" Mask="false"></Config>
+  <Config Name="Tesla Client Secret" Target="TESLA_CLIENT_SECRET" Default="" Mode="" Description="Client Secret aus dem Tesla Developer Portal." Type="Variable" Display="always" Required="false" Mask="true"></Config>
+  <Config Name="Tesla Fleet API Base URL" Target="TESLA_FLEET_API_BASE_URL" Default="https://fleet-api.prd.eu.vn.cloud.tesla.com" Mode="" Description="Regionale Fleet-API-Basis, z. B. EU oder NA." Type="Variable" Display="always" Required="false" Mask="false">https://fleet-api.prd.eu.vn.cloud.tesla.com</Config>
+  <Config Name="Tesla OAuth Scope" Target="TESLA_OAUTH_SCOPE" Default="openid offline_access user_data vehicle_device_data vehicle_charging_cmds" Mode="" Description="Scopes fuer den Tesla-OAuth-Login. Standard normalerweise nicht aendern." Type="Variable" Display="advanced" Required="false" Mask="false">openid offline_access user_data vehicle_device_data vehicle_charging_cmds</Config>
+  <Config Name="Tesla OAuth Redirect Path" Target="TESLA_OAUTH_REDIRECT_PATH" Default="/api/v1/tesla/oauth/callback" Mode="" Description="Muss exakt im Tesla Developer Portal als Callback registriert sein." Type="Variable" Display="advanced" Required="false" Mask="false">/api/v1/tesla/oauth/callback</Config>
   <Config Name="SMTP Host" Target="SMTP_HOST" Default="" Mode="" Description="Optional. Wenn leer, werden E-Mails nur im Outbox-Log protokolliert." Type="Variable" Display="always" Required="false" Mask="false"></Config>
   <Config Name="SMTP Port" Target="SMTP_PORT" Default="587" Mode="" Description="Typisch 587 mit TLS oder 465 mit SSL." Type="Variable" Display="always" Required="false" Mask="false">587</Config>
   <Config Name="SMTP Username" Target="SMTP_USERNAME" Default="" Mode="" Description="Optionaler SMTP-Benutzername." Type="Variable" Display="always" Required="false" Mask="false"></Config>
