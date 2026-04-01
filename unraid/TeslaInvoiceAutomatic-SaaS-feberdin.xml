@@ -1,0 +1,65 @@
+<?xml version="1.0"?>
+<Container version="2">
+  <Name>TeslaInvoiceAutomatic-SaaS</Name>
+  <Repository>ghcr.io/feberdin/tesla-invoice-automatic-saas:latest</Repository>
+  <Registry>https://ghcr.io</Registry>
+  <Network>bridge</Network>
+  <MyIP/>
+  <Shell>sh</Shell>
+  <Privileged>false</Privileged>
+  <Support>https://github.com/Feberdin/TeslaInvoiceAutomatic/issues</Support>
+  <Project>https://github.com/Feberdin/TeslaInvoiceAutomatic</Project>
+  <Overview>
+TeslaInvoiceAutomatic SaaS Test-App fuer Unraid.
+
+Diese persoenliche Vorlage ist bereits auf `https://tesla-invoice.feberdin.de` und die Tesla Fleet API EU-Region vorbereitet:
+- Registrierung und Login
+- VIN-Verwaltung pro Nutzer
+- offizieller Tesla-Fleet-Login fuer Endkunden
+- inoffizieller Tesla-Token-Import fuer Self-Hosted-Tests ohne Fleet-Billing
+- bevorzugter Live-Weg, falls beide Varianten gespeichert sind
+- Testrechnung per SMTP oder Outbox-Log
+- Live-Tesla-Sync fuer echte Supercharger-Rechnungen
+- Demo-Fallback, wenn noch kein echter Tesla-Zugang verbunden ist
+- Buchhaltungsziele als Platzhalter im Dashboard
+- FastAPI Web-UI und API
+- Hintergrund-Worker
+- SQLite im gemounteten Appdata-Verzeichnis
+- PDF-Rechnungen und Mail-Outbox im Volume
+
+Hinweis:
+Diese Vorlage setzt bewusst nur oeffentliche oder installationsbezogene Defaults. Das Tesla-Kundengeheimnis bleibt leer und sollte erst direkt in Unraid eingetragen werden.
+  </Overview>
+  <Category>Productivity:Tools:</Category>
+  <WebUI>https://tesla-invoice.feberdin.de/auth</WebUI>
+  <TemplateURL>https://raw.githubusercontent.com/Feberdin/TeslaInvoiceAutomatic/main/unraid/TeslaInvoiceAutomatic-SaaS.xml</TemplateURL>
+  <Icon>https://raw.githubusercontent.com/Feberdin/TeslaInvoiceAutomatic/main/unraid/icon.svg</Icon>
+  <ExtraParams/>
+  <PostArgs/>
+  <CPUset/>
+  <Requires>Docker image ghcr.io/feberdin/tesla-invoice-automatic-saas:latest muss veroeffentlicht sein.</Requires>
+  <Config Name="Web UI Port" Target="8000" Default="8010" Mode="tcp" Description="Host-Port fuer Dashboard und API. 8010 vermeidet Kollisionen mit typischen Unraid-Diensten auf 8000." Type="Port" Display="always" Required="true" Mask="false">8010</Config>
+  <Config Name="Persistent Data Directory" Target="/data" Default="/mnt/user/appdata/tesla-invoice-automatic-saas" Mode="rw" Description="Speichert SQLite, Rechnungs-PDFs und Mail-Outbox dauerhaft." Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata/tesla-invoice-automatic-saas</Config>
+  <Config Name="App Base URL" Target="APP_BASE_URL" Default="https://tesla-invoice.feberdin.de" Mode="" Description="Oeffentliche Basis-URL fuer Tesla OAuth, Dashboard-Links und Callback-Pfade." Type="Variable" Display="always" Required="true" Mask="false">https://tesla-invoice.feberdin.de</Config>
+  <Config Name="Session Secret Key" Target="SECRET_KEY" Default="change-me-to-a-long-random-secret" Mode="" Description="Wird fuer Session-Cookies benoetigt. Bitte fuer laengeren Betrieb unbedingt aendern." Type="Variable" Display="always" Required="true" Mask="true">change-me-to-a-long-random-secret</Config>
+  <Config Name="Database URL" Target="DATABASE_URL" Default="sqlite:////data/local_demo.db" Mode="" Description="SQLite-Datei fuer den Demo-Betrieb. Normalerweise nicht aendern." Type="Variable" Display="advanced" Required="true" Mask="false">sqlite:////data/local_demo.db</Config>
+  <Config Name="Data Dir Variable" Target="DATA_DIR" Default="/data" Mode="" Description="Interner Speicherpfad fuer PDFs und Logs." Type="Variable" Display="advanced" Required="true" Mask="false">/data</Config>
+  <Config Name="Demo Mode" Target="DEMO_MODE" Default="true" Mode="" Description="Wenn true, bleibt der Demo-Fallback aktiv, solange noch kein echter Tesla-Zugang verbunden ist." Type="Variable" Display="advanced" Required="true" Mask="false">true</Config>
+  <Config Name="Sync Interval Seconds" Target="SYNC_INTERVAL_SECONDS" Default="1800" Mode="" Description="Intervall des Hintergrundsyncs in Sekunden. 1800 = 30 Minuten." Type="Variable" Display="advanced" Required="true" Mask="false">1800</Config>
+  <Config Name="Log Level" Target="LOG_LEVEL" Default="INFO" Mode="" Description="DEBUG, INFO, WARNING oder ERROR" Type="Variable" Display="advanced" Required="true" Mask="false">INFO</Config>
+  <Config Name="Default Demo User Email" Target="DEMO_USER_EMAIL" Default="demo@feberdin.local" Mode="" Description="Vorausgefuellte Demo-E-Mail im Dashboard." Type="Variable" Display="advanced" Required="true" Mask="false">demo@feberdin.local</Config>
+  <Config Name="Default From E-Mail" Target="DEFAULT_FROM_EMAIL" Default="no-reply@feberdin.de" Mode="" Description="Absender fuer Testmails und Demo-Sync-Benachrichtigungen." Type="Variable" Display="always" Required="true" Mask="false">no-reply@feberdin.de</Config>
+  <Config Name="Enable Tesla Fleet OAuth" Target="ENABLE_TESLA_FLEET_OAUTH" Default="true" Mode="" Description="Aktiviert den offiziellen Tesla Fleet Login im Dashboard." Type="Variable" Display="always" Required="false" Mask="false">true</Config>
+  <Config Name="Enable Inoffiziellen Tesla Import" Target="ENABLE_TESLA_OWNER_IMPORT" Default="true" Mode="" Description="Aktiviert den inoffiziellen Token-Import ohne Fleet-Billing." Type="Variable" Display="always" Required="false" Mask="false">true</Config>
+  <Config Name="Tesla Client ID" Target="TESLA_CLIENT_ID" Default="b7865952-5cc8-47c1-ab38-0cd0dfcb9f07" Mode="" Description="Client ID aus dem Tesla Developer Portal fuer den offiziellen Tesla-Login." Type="Variable" Display="always" Required="false" Mask="false">b7865952-5cc8-47c1-ab38-0cd0dfcb9f07</Config>
+  <Config Name="Tesla Client Secret" Target="TESLA_CLIENT_SECRET" Default="" Mode="" Description="Das Tesla-Kundengeheimnis bitte nur direkt in Unraid eintragen, nicht in Git speichern." Type="Variable" Display="always" Required="false" Mask="true"></Config>
+  <Config Name="Tesla Fleet API Base URL" Target="TESLA_FLEET_API_BASE_URL" Default="https://fleet-api.prd.eu.vn.cloud.tesla.com" Mode="" Description="EU-Fleet-API fuer Deutschland. Andere Regionen nur aendern, wenn dein Tesla-Account dort registriert ist." Type="Variable" Display="always" Required="false" Mask="false">https://fleet-api.prd.eu.vn.cloud.tesla.com</Config>
+  <Config Name="Tesla OAuth Scope" Target="TESLA_OAUTH_SCOPE" Default="openid offline_access user_data vehicle_device_data vehicle_charging_cmds" Mode="" Description="Scopes fuer den Tesla-OAuth-Login. Standard normalerweise nicht aendern." Type="Variable" Display="advanced" Required="false" Mask="false">openid offline_access user_data vehicle_device_data vehicle_charging_cmds</Config>
+  <Config Name="Tesla OAuth Redirect Path" Target="TESLA_OAUTH_REDIRECT_PATH" Default="/api/v1/tesla/oauth/callback" Mode="" Description="Muss im Tesla Developer Portal exakt mit https://tesla-invoice.feberdin.de/api/v1/tesla/oauth/callback uebereinstimmen." Type="Variable" Display="advanced" Required="false" Mask="false">/api/v1/tesla/oauth/callback</Config>
+  <Config Name="SMTP Host" Target="SMTP_HOST" Default="" Mode="" Description="Optional. Wenn leer, werden E-Mails nur im Outbox-Log protokolliert." Type="Variable" Display="always" Required="false" Mask="false"></Config>
+  <Config Name="SMTP Port" Target="SMTP_PORT" Default="587" Mode="" Description="Typisch 587 mit TLS oder 465 mit SSL." Type="Variable" Display="always" Required="false" Mask="false">587</Config>
+  <Config Name="SMTP Username" Target="SMTP_USERNAME" Default="" Mode="" Description="Optionaler SMTP-Benutzername." Type="Variable" Display="always" Required="false" Mask="false"></Config>
+  <Config Name="SMTP Password" Target="SMTP_PASSWORD" Default="" Mode="" Description="Optionales SMTP-Passwort." Type="Variable" Display="always" Required="false" Mask="true"></Config>
+  <Config Name="SMTP Use TLS" Target="SMTP_USE_TLS" Default="true" Mode="" Description="Fuer Port 587 meist true." Type="Variable" Display="always" Required="false" Mask="false">true</Config>
+  <Config Name="SMTP Use SSL" Target="SMTP_USE_SSL" Default="false" Mode="" Description="Fuer Port 465 meist true. Nicht gleichzeitig mit TLS verwenden." Type="Variable" Display="always" Required="false" Mask="false">false</Config>
+</Container>
