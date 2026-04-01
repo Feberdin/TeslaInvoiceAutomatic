@@ -32,7 +32,7 @@ Diese Vorlage setzt bewusst nur oeffentliche oder installationsbezogene Defaults
   </Overview>
   <Category>Productivity:Tools:</Category>
   <WebUI>https://tesla-invoice.feberdin.de/auth</WebUI>
-  <TemplateURL>https://raw.githubusercontent.com/Feberdin/TeslaInvoiceAutomatic/main/unraid/TeslaInvoiceAutomatic-SaaS.xml</TemplateURL>
+  <TemplateURL>https://raw.githubusercontent.com/Feberdin/TeslaInvoiceAutomatic/main/unraid/TeslaInvoiceAutomatic-SaaS-feberdin.xml</TemplateURL>
   <Icon>https://raw.githubusercontent.com/Feberdin/TeslaInvoiceAutomatic/main/unraid/icon.svg</Icon>
   <ExtraParams/>
   <PostArgs/>
@@ -40,6 +40,8 @@ Diese Vorlage setzt bewusst nur oeffentliche oder installationsbezogene Defaults
   <Requires>Docker image ghcr.io/feberdin/tesla-invoice-automatic-saas:latest muss veroeffentlicht sein.</Requires>
   <Config Name="Web UI Port" Target="8000" Default="8010" Mode="tcp" Description="Host-Port fuer Dashboard und API. 8010 vermeidet Kollisionen mit typischen Unraid-Diensten auf 8000." Type="Port" Display="always" Required="true" Mask="false">8010</Config>
   <Config Name="Persistent Data Directory" Target="/data" Default="/mnt/user/appdata/tesla-invoice-automatic-saas" Mode="rw" Description="Speichert SQLite, Rechnungs-PDFs und Mail-Outbox dauerhaft." Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata/tesla-invoice-automatic-saas</Config>
+  <Config Name="App Name" Target="APP_NAME" Default="Tesla Invoice Automatic SaaS" Mode="" Description="Anzeigename der Anwendung in Logs und UI." Type="Variable" Display="advanced" Required="false" Mask="false">Tesla Invoice Automatic SaaS</Config>
+  <Config Name="App Environment" Target="APP_ENV" Default="production" Mode="" Description="Freies Umgebungskennzeichen, z. B. production oder staging." Type="Variable" Display="advanced" Required="false" Mask="false">production</Config>
   <Config Name="App Base URL" Target="APP_BASE_URL" Default="https://tesla-invoice.feberdin.de" Mode="" Description="Oeffentliche Basis-URL fuer Tesla OAuth, Dashboard-Links und Callback-Pfade." Type="Variable" Display="always" Required="true" Mask="false">https://tesla-invoice.feberdin.de</Config>
   <Config Name="Session Secret Key" Target="SECRET_KEY" Default="change-me-to-a-long-random-secret" Mode="" Description="Wird fuer Session-Cookies benoetigt. Bitte fuer laengeren Betrieb unbedingt aendern." Type="Variable" Display="always" Required="true" Mask="true">change-me-to-a-long-random-secret</Config>
   <Config Name="Database URL" Target="DATABASE_URL" Default="sqlite:////data/local_demo.db" Mode="" Description="SQLite-Datei fuer den Demo-Betrieb. Normalerweise nicht aendern." Type="Variable" Display="advanced" Required="true" Mask="false">sqlite:////data/local_demo.db</Config>
