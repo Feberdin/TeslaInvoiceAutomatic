@@ -232,8 +232,8 @@ class InvoiceSyncService:
 
         if not email_settings.employee_sender_email:
             raise ValueError(
-                "Circula ist aktiviert, aber es fehlt die Mitarbeiter-Absenderadresse. "
-                "Bitte in den Versand-Einstellungen `Mitarbeiter-E-Mail fuer Circula` setzen."
+                "Circula ist aktiviert, aber es fehlt die sichtbare Absenderadresse. "
+                "Bitte in den Versand-Einstellungen `Sichtbarer Absender fuer Circula (Von-Adresse)` setzen."
             )
 
         return [CIRCULA_RECEIPT_ADDRESS], recipients, email_settings.employee_sender_email, attachments

@@ -56,6 +56,8 @@ Ohne veroeffentlichtes Image kann Unraid zwar das Template sehen, aber den Conta
   `TESLA_CLIENT_ID`, `TESLA_CLIENT_SECRET`, `TESLA_FLEET_API_BASE_URL`, `TESLA_PARTNER_TOKEN_SCOPE`
 - Fuer echten Mailtest:
   `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `SMTP_USE_TLS`, `SMTP_USE_SSL`
+- Fuer Circula:
+  die eingetragene Mitarbeiter-Adresse wird als sichtbare `Von`-Adresse gesetzt. Dein SMTP-Provider muss diese Absenderadresse zulassen, sonst schreibt er sie eventuell auf das SMTP-Konto um.
 
 ## Typischer Testablauf auf Unraid
 

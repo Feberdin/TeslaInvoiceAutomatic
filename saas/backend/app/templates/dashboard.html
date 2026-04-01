@@ -48,17 +48,22 @@ Debug: If actions update the wrong user, inspect the active session and the `/ap
           <input id="attach-pdf" type="checkbox" checked />
           <span>PDF als Anhang mitsenden</span>
         </label>
-        <label for="employee-sender-email">Mitarbeiter-E-Mail fuer Circula (optional)</label>
+        <label for="employee-sender-email">Sichtbarer Absender fuer Circula (Von-Adresse)</label>
         <input
           id="employee-sender-email"
           type="email"
           placeholder="z. B. max.mustermann@firma.de"
         />
+        <p class="helper">
+          Wenn `Circula` aktiv ist, wird genau diese Adresse im Feld `Von` / Absender gesetzt. Circula benoetigt hier
+          die Mitarbeiter-Adresse, der der Beleg spaeter zugeordnet werden soll.
+        </p>
         <div class="inline-section">
           <h3>Buchhaltungssysteme</h3>
           <p class="helper">
             `Circula` ist bereits aktiv und sendet neue Rechnungen an `receipts@in.circula.com`.
-            Deine normalen Empfaenger laufen dabei als `CC` mit. Alle anderen Ziele sind aktuell nur Platzhalter und im UI entsprechend markiert.
+            Deine normalen Empfaenger laufen dabei als `CC` mit. Die oben eingetragene Mitarbeiter-Adresse erscheint als sichtbarer Absender.
+            Alle anderen Ziele sind aktuell nur Platzhalter und im UI entsprechend markiert.
           </p>
           <div id="accounting-options" class="pill-grid"></div>
         </div>

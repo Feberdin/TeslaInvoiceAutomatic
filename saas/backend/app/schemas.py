@@ -63,7 +63,7 @@ class EmailSettingsRequest(BaseModel):
     def validate_circula_sender_requirement(self) -> "EmailSettingsRequest":
         if "Circula" in self.accounting_targets and not self.employee_sender_email:
             raise ValueError(
-                "Fuer Circula wird eine Mitarbeiter-Absenderadresse benoetigt, damit die Belege korrekt zugeordnet werden."
+                "Fuer Circula wird eine sichtbare Absenderadresse benoetigt, damit die Belege korrekt dem Mitarbeiter zugeordnet werden."
             )
         return self
 

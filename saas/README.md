@@ -53,7 +53,7 @@ Wichtig: Diese Build-Stufe unterstuetzt bewusst beide Varianten parallel. Der Fl
 - automatische Reparatur fehlender Live-Betraege aus Fleet-Daten und bereits geladenen PDFs
 - Admin-Button zum sicheren Entfernen alter Demo-Rechnungen aus dem Archiv
 - PDF-Download aus dem Archiv
-- Circula-Versand ueber `receipts@in.circula.com` mit Mitarbeiter-Absenderadresse als `From` und normalen Empfaengern als `CC`
+- Circula-Versand ueber `receipts@in.circula.com` mit sichtbarer Mitarbeiter-Adresse im `Von`-Feld und normalen Empfaengern als `CC`
 - sichtbare Platzhalter fuer DATEV, Lexoffice, sevDesk, Paperless, Dropbox und Google Drive
 - DEBUG/INFO/WARNING/ERROR Logging fuer API, Worker und Mailpfad
 
@@ -256,16 +256,17 @@ Danach:
 Circula ist als erster einfacher Buchhaltungsweg bereits umgesetzt:
 
 1. aktiviere `Circula` in den Versand-Einstellungen
-2. trage die Mitarbeiter-E-Mail ein, die bei Circula dem Beleg zugeordnet werden soll
+2. trage die Mitarbeiter-E-Mail ein, die bei Circula im Feld `Von` / Absender erscheinen soll
 3. der Sync sendet neue Rechnungs-PDFs an `receipts@in.circula.com`
 4. deine gespeicherten normalen Empfaenger laufen dabei als `CC` mit
 5. auch `Testrechnung senden` nutzt bei aktivem Circula genau denselben Weg
 
 Wichtig:
 
-- Die Mitarbeiter-E-Mail wird als Absender verwendet.
+- Die Mitarbeiter-E-Mail wird als sichtbarer `Von`-Absender und auch als `Reply-To` gesetzt.
 - Wenn `Circula` aktiv ist, aber keine Mitarbeiter-E-Mail hinterlegt wurde, blockiert die Validierung den Speichervorgang bewusst frueh.
 - Die anderen Buchhaltungsziele bleiben sichtbar, sind aber noch nicht implementiert.
+- Dein SMTP-Provider muss diese Adresse als erlaubten Absender akzeptieren. Manche Provider schreiben fremde `Von`-Adressen sonst wieder auf das SMTP-Konto um.
 
 ## Live-Archiv ohne Demo-Daten
 

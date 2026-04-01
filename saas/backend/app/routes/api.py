@@ -762,8 +762,8 @@ def send_test_email(
             raise HTTPException(
                 status_code=400,
                 detail=(
-                    "Circula ist aktiv, aber es fehlt die Mitarbeiter-Absenderadresse. "
-                    "Bitte zuerst in den Versand-Einstellungen `Mitarbeiter-E-Mail fuer Circula` setzen."
+                    "Circula ist aktiv, aber es fehlt die sichtbare Absenderadresse. "
+                    "Bitte zuerst in den Versand-Einstellungen `Sichtbarer Absender fuer Circula (Von-Adresse)` setzen."
                 ),
             )
         target_recipients = ["receipts@in.circula.com"]
@@ -771,7 +771,8 @@ def send_test_email(
         from_email = user.email_settings.employee_sender_email
         message = (
             "Dies ist eine Circula-Testrechnung aus dem TeslaInvoiceAutomatic SaaS MVP. "
-            "Circula ist Hauptempfaenger, gespeicherte Empfaenger laufen als CC mit."
+            "Circula ist Hauptempfaenger, gespeicherte Empfaenger laufen als CC mit. "
+            "Die angegebene Mitarbeiter-Adresse wird als sichtbarer Von-Absender gesetzt."
         )
 
     delivery_mode = DeliveryEmailService(settings.data_dir, settings).send_message(
@@ -788,6 +789,7 @@ def send_test_email(
         "delivery_mode": delivery_mode,
         "recipients": target_recipients,
         "cc_recipients": cc_recipients,
+        "from_email": from_email or settings.default_from_email,
     }
 
 

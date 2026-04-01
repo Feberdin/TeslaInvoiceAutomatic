@@ -313,8 +313,9 @@ async function sendDebugTestEmail() {
   });
   const recipients = Array.isArray(payload.recipients) ? payload.recipients.join(", ") : "";
   const ccRecipients = Array.isArray(payload.cc_recipients) ? payload.cc_recipients.join(", ") : "";
+  const fromEmail = payload.from_email || "unbekannt";
   showNotice(
-    `Testmail verarbeitet. Modus: ${payload.delivery_mode}. Empfaenger: ${recipients || "keine"}${ccRecipients ? ` | CC: ${ccRecipients}` : ""}.`
+    `Testmail verarbeitet. Modus: ${payload.delivery_mode}. Von: ${fromEmail}. Empfaenger: ${recipients || "keine"}${ccRecipients ? ` | CC: ${ccRecipients}` : ""}.`
   );
 }
 
