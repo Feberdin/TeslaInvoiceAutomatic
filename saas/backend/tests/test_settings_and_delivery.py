@@ -92,7 +92,6 @@ class SettingsAndDeliveryTests(unittest.TestCase):
             self.assertEqual("outbox", delivery_mode)
             outbox_content = (Path(temp_dir) / "email-outbox.log").read_text(encoding="utf-8")
             self.assertIn("from=fahrer@example.com", outbox_content)
-            self.assertIn("reply_to=fahrer@example.com", outbox_content)
             self.assertIn("to=receipts@in.circula.com", outbox_content)
             self.assertIn("cc=user@example.com", outbox_content)
 

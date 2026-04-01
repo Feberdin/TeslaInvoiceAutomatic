@@ -66,13 +66,11 @@ class DeliveryEmailService:
     ) -> str:
         effective_from_email = from_email or self.default_from_email
         effective_cc = [recipient for recipient in (cc_recipients or []) if recipient]
-        effective_reply_to = effective_from_email
         timestamp = datetime.now(timezone.utc).isoformat()
         record = (
             f"[{timestamp}] from={effective_from_email} "
             f"to={','.join(recipients)} subject={subject!r} "
             f"cc={','.join(effective_cc)} "
-            f"reply_to={effective_reply_to} "
             f"attachments={attachment_paths!r} body={body!r}\n"
         )
         with self.outbox_path.open("a", encoding="utf-8") as handle:
@@ -91,7 +89,6 @@ class DeliveryEmailService:
 
         message = EmailMessage()
         message["From"] = effective_from_email
-        message["Reply-To"] = effective_reply_to
         message["To"] = ", ".join(recipients)
         if effective_cc:
             message["Cc"] = ", ".join(effective_cc)
@@ -114,14 +111,13 @@ class DeliveryEmailService:
 
         try:
             logger.debug(
-                "Attempting SMTP delivery. host=%s port=%s tls=%s ssl=%s username_set=%s from=%s reply_to=%s recipients=%s cc=%s",
+                "Attempting SMTP delivery. host=%s port=%s tls=%s ssl=%s username_set=%s from=%s recipients=%s cc=%s",
                 self.smtp_host,
                 self.smtp_port,
                 self.smtp_use_tls,
                 self.smtp_use_ssl,
                 bool(self.smtp_username),
                 effective_from_email,
-                effective_reply_to,
                 recipients,
                 effective_cc,
             )
@@ -135,16 +131,17 @@ class DeliveryEmailService:
                     server.starttls()
                 if self.smtp_username:
                     server.login(self.smtp_username, self.smtp_password)
+                # We deliberately only set the visible `From` header here. If a provider still rewrites the
+                # sender, the remaining limitation is on the SMTP side and not caused by an extra Reply-To.
                 server.send_message(message)
         except Exception as exc:
             logger.exception(
-                "SMTP delivery failed. host=%s port=%s tls=%s ssl=%s from=%s reply_to=%s recipients=%s cc=%s",
+                "SMTP delivery failed. host=%s port=%s tls=%s ssl=%s from=%s recipients=%s cc=%s",
                 self.smtp_host,
                 self.smtp_port,
                 self.smtp_use_tls,
                 self.smtp_use_ssl,
                 effective_from_email,
-                effective_reply_to,
                 recipients,
                 effective_cc,
             )
@@ -153,9 +150,8 @@ class DeliveryEmailService:
             ) from exc
 
         logger.info(
-            "SMTP delivery succeeded. from=%s reply_to=%s recipients=%s cc=%s attachments=%s",
+            "SMTP delivery succeeded. from=%s recipients=%s cc=%s attachments=%s",
             effective_from_email,
-            effective_reply_to,
             recipients,
             effective_cc,
             len(attachment_paths),

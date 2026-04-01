@@ -263,7 +263,7 @@ Circula ist als erster einfacher Buchhaltungsweg bereits umgesetzt:
 
 Wichtig:
 
-- Die Mitarbeiter-E-Mail wird als sichtbarer `Von`-Absender und auch als `Reply-To` gesetzt.
+- Die Mitarbeiter-E-Mail wird ausschliesslich als sichtbarer `Von`-Absender gesetzt.
 - Wenn `Circula` aktiv ist, aber keine Mitarbeiter-E-Mail hinterlegt wurde, blockiert die Validierung den Speichervorgang bewusst frueh.
 - Die anderen Buchhaltungsziele bleiben sichtbar, sind aber noch nicht implementiert.
 - Dein SMTP-Provider muss diese Adresse als erlaubten Absender akzeptieren. Manche Provider schreiben fremde `Von`-Adressen sonst wieder auf das SMTP-Konto um.
