@@ -131,14 +131,46 @@ Debug: If actions update the wrong user, inspect the active session and the `/ap
           Diese Testversion bietet bewusst zwei Wege an: den offiziellen Fleet-Login fuer ein spaeteres SaaS-Produkt
           und den inoffiziellen Token-Import fuer Self-Hosted-Tests ohne Fleet-Billing.
         </p>
-        <div class="connection-method-grid">
-          <section id="fleet-card" class="connection-card">
+        <div class="connection-tab-list" role="tablist" aria-label="Tesla Authentifizierungswege">
+          <button
+            id="tesla-tab-fleet"
+            class="connection-tab is-active"
+            type="button"
+            role="tab"
+            aria-selected="true"
+            aria-controls="fleet-card"
+            data-connection-tab="fleet"
+          >
+            <span class="connection-tab-copy">
+              <strong>Offizieller Fleet-Login</strong>
+              <small id="fleet-tab-caption">Tesla Fleet API</small>
+            </span>
+            <span id="fleet-status-pill" class="soft-pill">Noch nicht aktiv</span>
+          </button>
+          <button
+            id="tesla-tab-owner"
+            class="connection-tab"
+            type="button"
+            role="tab"
+            aria-selected="false"
+            aria-controls="owner-card"
+            data-connection-tab="owner"
+          >
+            <span class="connection-tab-copy">
+              <strong>Inoffizieller Token-Import</strong>
+              <small id="owner-tab-caption">Refresh-Token oder TeslaPy-Cache</small>
+            </span>
+            <span id="owner-status-pill" class="soft-pill">Bereit</span>
+          </button>
+        </div>
+
+        <div class="connection-panel-stack">
+          <section id="fleet-card" class="connection-card connection-panel" role="tabpanel" aria-labelledby="tesla-tab-fleet">
             <div class="connection-card-head">
               <div>
                 <p class="eyebrow">Variante A</p>
                 <h3>Offizieller Fleet-Login</h3>
               </div>
-              <span id="fleet-status-pill" class="soft-pill">Noch nicht aktiv</span>
             </div>
             <p class="helper" id="fleet-help-copy">
               Fuer spaeteren Kundeneinsatz gedacht. Dieser Weg ist der offizielle Tesla-Flow, benoetigt aber Fleet-API-Konfiguration
@@ -153,13 +185,18 @@ Debug: If actions update the wrong user, inspect the active session and the `/ap
             </div>
           </section>
 
-          <section id="owner-card" class="connection-card">
+          <section
+            id="owner-card"
+            class="connection-card connection-panel"
+            role="tabpanel"
+            aria-labelledby="tesla-tab-owner"
+            hidden
+          >
             <div class="connection-card-head">
               <div>
                 <p class="eyebrow">Variante B</p>
                 <h3>Inoffizieller Token-Import</h3>
               </div>
-              <span id="owner-status-pill" class="soft-pill">Bereit</span>
             </div>
             <p class="helper" id="owner-help-copy">
               Fuer Self-Hosted- und Technik-Tests ohne Fleet-Billing. Dafuer brauchst du manuell ein Refresh-Token oder eine TeslaPy-/tesla_ha-Cache-Datei.

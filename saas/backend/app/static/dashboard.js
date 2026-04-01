@@ -4,6 +4,8 @@ Invariants: Every request relies on the session cookie, users can see both Tesla
 Debug: If actions fail or the wrong Tesla source is selected, inspect `/api/v1/me`, the visible badges and the current preferred live mode first. */
 
 let currentProfile = null;
+let currentConnectionTab = "fleet";
+const CONNECTION_TAB_STORAGE_KEY = "tesla-auth-connection-tab";
 
 const MODE_LABELS = {
   auto: "Automatisch",
@@ -33,6 +35,41 @@ function preferredModeExplanation(mode) {
 
 function isConnectedMode(profile, mode) {
   return Array.isArray(profile?.connected_tesla_modes) && profile.connected_tesla_modes.includes(mode);
+}
+
+function preferredConnectionTab(profile) {
+  const savedTab = window.localStorage.getItem(CONNECTION_TAB_STORAGE_KEY);
+  if (savedTab === "fleet" || savedTab === "owner") {
+    return savedTab;
+  }
+  if (isConnectedMode(profile, "fleet_oauth")) {
+    return "fleet";
+  }
+  if (isConnectedMode(profile, "owner_api")) {
+    return "owner";
+  }
+  if (profile?.tesla_oauth_available) {
+    return "fleet";
+  }
+  return "owner";
+}
+
+function setConnectionTab(tabName) {
+  currentConnectionTab = tabName === "owner" ? "owner" : "fleet";
+  window.localStorage.setItem(CONNECTION_TAB_STORAGE_KEY, currentConnectionTab);
+
+  const fleetTab = document.getElementById("tesla-tab-fleet");
+  const ownerTab = document.getElementById("tesla-tab-owner");
+  const fleetCard = document.getElementById("fleet-card");
+  const ownerCard = document.getElementById("owner-card");
+
+  const fleetActive = currentConnectionTab === "fleet";
+  fleetTab.classList.toggle("is-active", fleetActive);
+  ownerTab.classList.toggle("is-active", !fleetActive);
+  fleetTab.setAttribute("aria-selected", fleetActive ? "true" : "false");
+  ownerTab.setAttribute("aria-selected", fleetActive ? "false" : "true");
+  fleetCard.hidden = !fleetActive;
+  ownerCard.hidden = fleetActive;
 }
 
 function currentPreferredMode() {
@@ -309,6 +346,11 @@ function applyProfile(profile) {
 
   const fleetStatusPill = document.getElementById("fleet-status-pill");
   fleetStatusPill.textContent = fleetConnected ? "Verbunden" : oauthReady ? "Bereit" : "Nicht konfiguriert";
+  document.getElementById("fleet-tab-caption").textContent = fleetConnected
+    ? "Verbunden und fuer Live-Sync bereit"
+    : oauthReady
+      ? "Tesla Fleet API"
+      : "Client ID, Secret und Callback fehlen";
   document.getElementById("fleet-help-copy").textContent = fleetConnected
     ? "Dieser offizielle Weg ist bereits verbunden und eignet sich fuer einen spaeteren SaaS-Betrieb mit Endkunden-Login."
     : oauthReady
@@ -317,13 +359,20 @@ function applyProfile(profile) {
 
   const ownerCard = document.getElementById("owner-card");
   const ownerStatusPill = document.getElementById("owner-status-pill");
-  ownerCard.hidden = !ownerImportReady && !ownerConnected;
   ownerStatusPill.textContent = ownerConnected ? "Verbunden" : ownerImportReady ? "Bereit" : "Deaktiviert";
+  document.getElementById("owner-tab-caption").textContent = ownerConnected
+    ? "Verbunden und fuer Live-Sync bereit"
+    : ownerImportReady
+      ? "Refresh-Token oder TeslaPy-Cache"
+      : "Vom Betreiber deaktiviert";
   document.getElementById("owner-help-copy").textContent = ownerConnected
     ? "Dieser inoffizielle Weg ist bereits verbunden und eignet sich gut fuer Self-Hosted-Tests ohne Fleet-Billing."
     : ownerImportReady
       ? "Dieser Weg bleibt fuer technische Nutzer sichtbar. Du brauchst dafuer ein Tesla Refresh-Token oder einen TeslaPy-/tesla_ha-Cache."
       : "Der inoffizielle Token-Import ist auf dieser Installation deaktiviert.";
+  ownerCard.classList.toggle("card-disabled", !ownerImportReady && !ownerConnected);
+
+  setConnectionTab(preferredConnectionTab(profile));
 
   for (const radio of document.querySelectorAll('input[name="preferred-live-mode"]')) {
     const value = radio.value;
@@ -479,6 +528,9 @@ document.addEventListener("DOMContentLoaded", async () => {
       showNotice(error.message, "error");
     })
   );
+  document.querySelectorAll("[data-connection-tab]").forEach((button) => {
+    button.addEventListener("click", () => setConnectionTab(button.dataset.connectionTab));
+  });
   document.getElementById("save-tesla-preference").addEventListener("click", () =>
     saveTeslaPreference().catch((error) => showNotice(error.message, "error"))
   );
