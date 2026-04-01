@@ -851,8 +851,11 @@ def save_email_settings(
     email_settings = ensure_email_settings(db, user, default_recipient=user.email)
     email_settings.recipients_csv = ",".join(payload.recipients)
     email_settings.subject_template = payload.subject_template
-    email_settings.attach_pdf = payload.attach_pdf
-    email_settings.employee_sender_email = payload.employee_sender_email
+    # Why this exists:
+    # The live beta always ships invoice PDFs as attachments and no longer exposes a custom Circula sender field.
+    # We keep the columns for backwards compatibility but normalize the runtime state here to avoid confusing leftovers.
+    email_settings.attach_pdf = True
+    email_settings.employee_sender_email = None
     email_settings.accounting_targets_csv = ",".join(
         target for target in payload.accounting_targets if target in AVAILABLE_ACCOUNTING_TARGETS
     )
@@ -902,24 +905,15 @@ def send_test_email(
     from_email: str | None = None
     message = (
         "Dies ist eine Testrechnung aus dem TeslaInvoiceAutomatic SaaS MVP. "
-        "Wenn diese Nachricht ankommt, funktioniert dein aktueller SMTP-Pfad."
+        "Wenn diese Nachricht ankommt, funktioniert dein aktueller Mailpfad."
     )
     if "Circula" in selected_targets:
-        if not user.email_settings or not user.email_settings.employee_sender_email:
-            raise HTTPException(
-                status_code=400,
-                detail=(
-                    "Circula ist aktiv, aber es fehlt die sichtbare Absenderadresse. "
-                    "Bitte zuerst in den Versand-Einstellungen `Sichtbarer Absender fuer Circula (Von-Adresse)` setzen."
-                ),
-            )
         target_recipients = ["receipts@in.circula.com"]
         cc_recipients = copy_recipients
-        from_email = user.email_settings.employee_sender_email
         message = (
             "Dies ist eine Circula-Testrechnung aus dem TeslaInvoiceAutomatic SaaS MVP. "
             "Circula ist Hauptempfaenger, gespeicherte Empfaenger laufen als CC mit. "
-            "Die angegebene Mitarbeiter-Adresse wird als sichtbarer Von-Absender gesetzt."
+            "Als sichtbarer Absender nutzt die App automatisch das verbundene Google-Konto oder den konfigurierten Standard-Absender."
         )
 
     try:

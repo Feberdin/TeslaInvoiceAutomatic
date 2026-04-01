@@ -57,29 +57,17 @@ Debug: If actions update the wrong user, inspect the active session and the `/ap
         <textarea id="recipients"></textarea>
         <label for="subject-template">Betreff</label>
         <input id="subject-template" type="text" value="Neue Tesla-Rechnungen fuer {email}" />
-        <label class="checkbox-row">
-          <input id="attach-pdf" type="checkbox" checked />
-          <span>PDF als Anhang mitsenden</span>
-        </label>
-        <label for="employee-sender-email">Sichtbarer Absender fuer Circula (Von-Adresse)</label>
-        <input
-          id="employee-sender-email"
-          type="email"
-          placeholder="z. B. max.mustermann@firma.de"
-        />
         <p class="helper">
-          Wenn `Circula` aktiv ist, wird genau diese Adresse im Feld `Von` / Absender gesetzt. Circula benoetigt hier
-          die Mitarbeiter-Adresse, der der Beleg spaeter zugeordnet werden soll. Wenn dein SMTP-Anbieter trotzdem
-          etwas anderes anzeigt, wird der Absender serverseitig ueberschrieben und nicht mehr von der App. Ohne dieses
-          Feld nutzt Gmail automatisch die verbundene Google-Adresse als Absender. Mit Google klappt das am saubersten,
-          wenn die Adresse dem verbundenen Google-Konto oder einer dort freigegebenen Alias-Adresse entspricht.
+          Rechnungs-PDFs werden im Beta-Test immer als Anhang verschickt. Wenn Google Mail verbunden ist, nutzt
+          Circula automatisch das verbundene Google-Konto als sichtbaren Absender. Ohne Google greift der in Unraid
+          konfigurierte Standard-Absender.
         </p>
         <div class="inline-section">
           <h3>Buchhaltungssysteme</h3>
           <p class="helper">
             `Circula` ist bereits aktiv und sendet neue Rechnungen an `receipts@in.circula.com`.
-            Deine normalen Empfaenger laufen dabei als `CC` mit. Die oben eingetragene Mitarbeiter-Adresse erscheint als sichtbarer Absender.
-            Wenn Google Mail verbunden ist, wird dieser Weg gegenueber SMTP bevorzugt.
+            Deine normalen Empfaenger laufen dabei als `CC` mit. Wenn Google Mail verbunden ist, wird dieser Weg gegenueber SMTP bevorzugt
+            und das verbundene Google-Konto erscheint als sichtbarer Absender.
             Alle anderen Ziele sind aktuell nur Platzhalter und im UI entsprechend markiert.
           </p>
           <div id="accounting-options" class="pill-grid"></div>
@@ -99,8 +87,6 @@ Debug: If actions update the wrong user, inspect the active session and the `/ap
     </aside>
 
     <main class="stack dashboard-main">
-      <div id="notice" class="notice info" hidden></div>
-
       <article class="panel dashboard-overview-panel">
         <div class="dashboard-overview">
           <div class="dashboard-copy">

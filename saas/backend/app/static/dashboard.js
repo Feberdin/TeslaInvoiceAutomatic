@@ -67,10 +67,10 @@ async function apiRequest(path, options = {}) {
 }
 
 function showNotice(message, type = "info") {
-  const target = document.getElementById("notice");
-  target.className = `notice ${type}`;
-  target.textContent = typeof message === "string" ? message : extractErrorMessage(message);
-  target.hidden = false;
+  const normalizedMessage = typeof message === "string" ? message : extractErrorMessage(message);
+  if (window.AppNoticeCenter?.show) {
+    window.AppNoticeCenter.show(normalizedMessage, type);
+  }
 }
 
 function showTeslaError(message = "") {
@@ -304,8 +304,11 @@ function applyProfile(profile) {
 
   document.getElementById("recipients").value = profile.email_recipients.join(", ");
   document.getElementById("subject-template").value = profile.subject_template;
-  document.getElementById("attach-pdf").checked = profile.attach_pdf;
-  document.getElementById("employee-sender-email").value = profile.employee_sender_email || "";
+  document.getElementById("smtp-hint").textContent = profile.google_gmail_send_enabled
+    ? "Google Mail ist verbunden. Testrechnungen und Live-Rechnungen werden bevorzugt ueber Gmail versendet."
+    : profile.smtp_configured
+      ? "SMTP ist konfiguriert. Testrechnungen werden an den echten Mailserver gesendet."
+      : "SMTP ist nicht konfiguriert. Testrechnungen landen aktuell nur im `email-outbox.log`.";
 
   document.getElementById("account-delivery-pill").textContent = deliveryLabel;
   document.getElementById("google-account-pill").textContent = profile.google_connected
@@ -357,9 +360,7 @@ async function saveSettings() {
   const payload = {
     recipients: currentRecipients(),
     subject_template: document.getElementById("subject-template").value.trim(),
-    attach_pdf: document.getElementById("attach-pdf").checked,
     accounting_targets: currentAccountingTargets(),
-    employee_sender_email: document.getElementById("employee-sender-email").value.trim() || null,
   };
   const result = await apiRequest("/api/v1/settings/email", {
     method: "POST",
@@ -377,7 +378,7 @@ async function sendTestEmail() {
   const ccRecipients = (result.cc_recipients || []).join(", ");
   const fromEmail = result.from_email || "unbekannt";
   showNotice(
-    `Testmail wurde verarbeitet. Modus: ${result.delivery_mode}. Von: ${fromEmail}. Empfaenger: ${(result.recipients || []).join(", ") || "keine"}${ccRecipients ? ` | CC: ${ccRecipients}` : ""}.`
+    `Testmail wurde verarbeitet. Modus: ${result.delivery_mode}. Sichtbarer Absender: ${fromEmail}. Empfaenger: ${(result.recipients || []).join(", ") || "keine"}${ccRecipients ? ` | CC: ${ccRecipients}` : ""}.`
   );
 }
 

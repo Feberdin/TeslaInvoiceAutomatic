@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, Field, field_validator
 
 from app.auth import validate_password_strength
 from app.utils import validate_email_address, validate_recipient_list, validate_vin
@@ -58,14 +58,6 @@ class EmailSettingsRequest(BaseModel):
         if value is None or not value.strip():
             return None
         return validate_email_address(value)
-
-    @model_validator(mode="after")
-    def validate_circula_sender_requirement(self) -> "EmailSettingsRequest":
-        if "Circula" in self.accounting_targets and not self.employee_sender_email:
-            raise ValueError(
-                "Fuer Circula wird eine sichtbare Absenderadresse benoetigt, damit die Belege korrekt dem Mitarbeiter zugeordnet werden."
-            )
-        return self
 
 
 class VehicleCreateRequest(BaseModel):

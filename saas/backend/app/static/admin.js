@@ -68,10 +68,9 @@ async function apiRequest(path, options = {}) {
 }
 
 function showNotice(message, type = "info") {
-  const target = document.getElementById("admin-notice");
-  target.className = `notice ${type}`;
-  target.textContent = message;
-  target.hidden = !message;
+  if (window.AppNoticeCenter?.show) {
+    window.AppNoticeCenter.show(message, type);
+  }
 }
 
 function formatDate(value) {

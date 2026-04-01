@@ -226,18 +226,14 @@ class InvoiceSyncService:
         selected_targets = {
             item.strip() for item in (email_settings.accounting_targets_csv or "").split(",") if item.strip()
         }
-        attach_pdf = email_settings.attach_pdf or "Circula" in selected_targets
-        attachments = [invoice.pdf_path for invoice in created_invoices if attach_pdf]
+        # Why this exists:
+        # The beta product now always ships invoice PDFs as attachments. That keeps Circula and normal recipients
+        # consistent and removes one more delivery toggle that previously created confusing edge cases.
+        attachments = [invoice.pdf_path for invoice in created_invoices]
         if "Circula" not in selected_targets or not created_invoices:
             return recipients, [], None, attachments
 
-        if not email_settings.employee_sender_email:
-            raise ValueError(
-                "Circula ist aktiviert, aber es fehlt die sichtbare Absenderadresse. "
-                "Bitte in den Versand-Einstellungen `Sichtbarer Absender fuer Circula (Von-Adresse)` setzen."
-            )
-
-        return [CIRCULA_RECEIPT_ADDRESS], recipients, email_settings.employee_sender_email, attachments
+        return [CIRCULA_RECEIPT_ADDRESS], recipients, None, attachments
 
     def sync_all_users(self) -> list[tuple[str, SyncSummary]]:
         users = self.db.scalars(select(User)).all()

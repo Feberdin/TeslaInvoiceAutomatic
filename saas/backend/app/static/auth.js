@@ -4,10 +4,9 @@ Invariants: The primary Google CTA is a normal anchor link, so login still start
 Debug: If users loop back to /auth, inspect the query string, rendered Google link and backend cookie/session logs. */
 
 function showNotice(message, type = "info") {
-  const target = document.getElementById("notice");
-  target.className = `notice ${type}`;
-  target.textContent = message;
-  target.hidden = false;
+  if (window.AppNoticeCenter?.show) {
+    window.AppNoticeCenter.show(message, type);
+  }
 }
 
 function consumeQueryNotices() {

@@ -30,9 +30,26 @@ Debug: If a page loses its styling, inspect the static CSS and template inherita
         </nav>
       </header>
       {% block content %}{% endblock %}
+      <div id="app-notice-shell" class="overlay-notice-shell" hidden>
+        <button id="app-notice-toggle" class="overlay-log-button" type="button" hidden>Log</button>
+        <section id="app-notice-panel" class="overlay-notice-panel" hidden aria-live="polite" aria-atomic="false">
+          <div class="overlay-notice-header">
+            <div>
+              <strong>Statusmeldungen</strong>
+              <p class="overlay-notice-subtitle">Neue Hinweise blenden sich kurz ein und bleiben danach im Log erhalten.</p>
+            </div>
+            <div class="overlay-notice-actions">
+              <button id="app-notice-clear" class="overlay-inline-button" type="button">Leeren</button>
+              <button id="app-notice-close" class="overlay-inline-button" type="button">Schliessen</button>
+            </div>
+          </div>
+          <div id="app-notice-list" class="overlay-notice-list"></div>
+        </section>
+      </div>
       <footer class="footer">
         SaaS-Testversion fuer Unraid/Docker mit Registrierung, Google-Login, VIN-Verwaltung, Tesla Fleet API und Gmail-/SMTP-Versand.
       </footer>
     </div>
+    <script src="/static/notices.js"></script>
   </body>
 </html>

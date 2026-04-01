@@ -1,8 +1,8 @@
 """
 Purpose: Cover beta-specific configuration and delivery behavior without touching external systems.
 Input/Output: Uses patched environment variables and a temporary outbox file to verify validation and sender overrides.
-Invariants: `SYNC_INTERVAL_MINUTES` must win over seconds and Circula requires a dedicated employee sender address.
-Debug: If the worker cadence or Circula sender logic breaks, reproduce the smallest case here before changing runtime code.
+Invariants: `SYNC_INTERVAL_MINUTES` must win over seconds, Google delivery stays preferred over SMTP and Circula can run without an extra sender field.
+Debug: If the worker cadence or Google/Circula delivery behavior breaks, reproduce the smallest case here before changing runtime code.
 """
 
 from __future__ import annotations
@@ -42,20 +42,7 @@ class SettingsAndDeliveryTests(unittest.TestCase):
 
         self.assertEqual(2700, settings.sync_interval_seconds)
 
-    def test_circula_requires_employee_sender_email(self) -> None:
-        if EmailSettingsRequest is None:
-            self.skipTest("Pydantic ist lokal nicht installiert. Die Circula-Validierung wird im Container geprueft.")
-
-        with self.assertRaisesRegex(ValueError, "Mitarbeiter-Absenderadresse"):
-            EmailSettingsRequest(
-                recipients=["user@example.com"],
-                subject_template="Neue Tesla-Rechnungen fuer {email}",
-                attach_pdf=True,
-                accounting_targets=["Circula"],
-                employee_sender_email=None,
-            )
-
-    def test_circula_accepts_employee_sender_email(self) -> None:
+    def test_circula_accepts_missing_employee_sender_email(self) -> None:
         if EmailSettingsRequest is None:
             self.skipTest("Pydantic ist lokal nicht installiert. Die Circula-Validierung wird im Container geprueft.")
 
@@ -64,10 +51,10 @@ class SettingsAndDeliveryTests(unittest.TestCase):
             subject_template="Neue Tesla-Rechnungen fuer {email}",
             attach_pdf=True,
             accounting_targets=["Circula"],
-            employee_sender_email="fahrer@example.com",
+            employee_sender_email=None,
         )
 
-        self.assertEqual("fahrer@example.com", payload.employee_sender_email)
+        self.assertIsNone(payload.employee_sender_email)
 
     def test_outbox_records_effective_sender_override_and_cc(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
