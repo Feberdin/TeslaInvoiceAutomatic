@@ -7,10 +7,11 @@ Diese Version ist ein Docker-first Teststand fuer Unraid und lokale Docker-Umgeb
 - Tesla per offiziellem Fleet OAuth verbinden
 - oder Tesla per inoffiziellem Token-Import anbinden
 - Betreiber koennen im separaten Admin-Menue den Tesla-Fleet-Public-Key erzeugen und die Partner-App registrieren
+- Betreiber sehen im Admin-Menue alle registrierten Konten und deren Fahrzeuge
 - Empfaenger fuer Rechnungen speichern
 - Testrechnung per SMTP oder Outbox pruefen
 - Circula als erstes echtes Buchhaltungsziel per E-Mail bedienen
-- Demo- oder Live-Rechnungen erzeugen, archivieren und herunterladen
+- Demo- oder Live-Rechnungen erzeugen, archivieren, bereinigen und herunterladen
 - weitere Buchhaltungssysteme als klar markierte Platzhalter sehen
 
 Wichtig: Diese Build-Stufe unterstuetzt bewusst beide Varianten parallel. Der Fleet-Weg ist der offizielle SaaS-Pfad, der inoffizielle Token-Import ist der praktische Self-Hosted-Weg ohne Fleet-Billing. `DEMO_MODE=true` bleibt als sicherer Fallback sinnvoll, bis mindestens eine echte Tesla-Verbindung vorhanden ist.
@@ -44,12 +45,15 @@ Wichtig: Diese Build-Stufe unterstuetzt bewusst beide Varianten parallel. Der Fl
 - mehrere VINs pro Nutzer
 - offizieller Tesla-Fleet-Login direkt aus dem Dashboard
 - separates Admin-Menue fuer Betreiber mit Public-Key-Status, Partner-Register-Button und Tesla-Verify
+- Betreiber-Uebersicht ueber registrierte Konten und deren Fahrzeuge
 - Admin-Debug mit manueller VIN-Anlage, Testmail-Override und inoffiziellem Tesla-Owner-Import ueber Refresh-Token oder TeslaPy-/tesla_ha-`cache.json`
 - gespeicherte Versandempfaenger pro Nutzer
 - Testrechnung an gespeicherte Empfaenger im Dashboard plus abweichende Test-Adresse im Admin-Debug
 - Live-Sync fuer echte Tesla-Rechnungen oder Demo-Sync als Fallback
+- automatische Reparatur fehlender Live-Betraege aus Fleet-Daten und bereits geladenen PDFs
+- Admin-Button zum sicheren Entfernen alter Demo-Rechnungen aus dem Archiv
 - PDF-Download aus dem Archiv
-- Circula-Versand ueber `receipts@in.circula.com` mit Mitarbeiter-Absenderadresse
+- Circula-Versand ueber `receipts@in.circula.com` mit Mitarbeiter-Absenderadresse als `From` und normalen Empfaengern als `CC`
 - sichtbare Platzhalter fuer DATEV, Lexoffice, sevDesk, Paperless, Dropbox und Google Drive
 - DEBUG/INFO/WARNING/ERROR Logging fuer API, Worker und Mailpfad
 
@@ -76,6 +80,7 @@ Wichtig: Diese Build-Stufe unterstuetzt bewusst beide Varianten parallel. Der Fl
     │   ├── database.py
     │   ├── domain.py
     │   ├── errors.py
+    │   ├── invoice_amounts.py
     │   ├── logging_config.py
     │   ├── main.py
     │   ├── models.py
@@ -111,6 +116,7 @@ Wichtig: Diese Build-Stufe unterstuetzt bewusst beide Varianten parallel. Der Fl
     └── tests
         ├── test_auth_and_vin.py
         ├── test_core_logic.py
+        ├── test_invoice_amounts.py
         ├── test_pdf_and_validation.py
         ├── test_tesla_fleet.py
         ├── test_tesla_modes.py
@@ -251,13 +257,22 @@ Circula ist als erster einfacher Buchhaltungsweg bereits umgesetzt:
 
 1. aktiviere `Circula` in den Versand-Einstellungen
 2. trage die Mitarbeiter-E-Mail ein, die bei Circula dem Beleg zugeordnet werden soll
-3. der Sync sendet neue Rechnungs-PDFs zusaetzlich an `receipts@in.circula.com`
+3. der Sync sendet neue Rechnungs-PDFs an `receipts@in.circula.com`
+4. deine gespeicherten normalen Empfaenger laufen dabei als `CC` mit
+5. auch `Testrechnung senden` nutzt bei aktivem Circula genau denselben Weg
 
 Wichtig:
 
 - Die Mitarbeiter-E-Mail wird als Absender verwendet.
 - Wenn `Circula` aktiv ist, aber keine Mitarbeiter-E-Mail hinterlegt wurde, blockiert die Validierung den Speichervorgang bewusst frueh.
 - Die anderen Buchhaltungsziele bleiben sichtbar, sind aber noch nicht implementiert.
+
+## Live-Archiv ohne Demo-Daten
+
+- Sobald dein echter Fleet-Login produktiv laeuft, kannst du im Admin-Menue unter `Debug` den Button `Demo-Rechnungen loeschen` ausfuehren.
+- Dabei werden nur gespeicherte Demo-Rechnungen und deren Demo-PDFs entfernt.
+- Bereits vorhandene Live-Rechnungen ueber Fleet API oder den inoffiziellen Import bleiben erhalten.
+- Fehlende Live-Betraege werden beim Laden des Archivs und bei neuen Syncs automatisch aus Tesla-Daten oder den bereits gespeicherten PDFs nachgezogen.
 
 ## Unraid als App
 

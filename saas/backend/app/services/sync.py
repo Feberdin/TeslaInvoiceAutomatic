@@ -19,6 +19,7 @@ from app.core_logic import build_new_invoice_candidates
 from app.config import get_settings
 from app.domain import SyncSummary
 from app.errors import InvoiceDownloadError, TeslaApiError, TeslaAuthenticationError
+from app.invoice_amounts import extract_amount_and_currency_from_pdf_bytes, extract_amount_and_currency_from_pdf_path
 from app.models import EmailSetting, Invoice, TeslaAccount, User, Vehicle
 from app.services.emailer import DeliveryEmailService
 from app.services.tesla_fleet import TeslaFleetApiClient
@@ -80,10 +81,21 @@ class InvoiceSyncService:
                     vehicle,
                     fresh_seed=fresh_seed if sync_mode == "demo" else None,
                 )
-                existing_invoice_ids = self.db.scalars(
-                    select(Invoice.invoice_id).where(Invoice.vehicle_id == vehicle.id)
+                existing_invoices = self.db.scalars(
+                    select(Invoice).where(Invoice.vehicle_id == vehicle.id)
                 ).all()
-                new_candidates, skipped_count = build_new_invoice_candidates(sessions, existing_invoice_ids)
+                repaired_existing = self._refresh_existing_invoice_metadata(existing_invoices, sessions)
+                if repaired_existing:
+                    logger.info(
+                        "Repaired stored invoice metadata for %s on %s. repaired=%s",
+                        user.email,
+                        vehicle.vin,
+                        repaired_existing,
+                    )
+                new_candidates, skipped_count = build_new_invoice_candidates(
+                    sessions,
+                    {invoice.invoice_id for invoice in existing_invoices},
+                )
                 skipped_total += skipped_count
 
                 for candidate in new_candidates:
@@ -95,13 +107,20 @@ class InvoiceSyncService:
                         candidate.currency,
                         candidate.location,
                     )
+                    resolved_amount = Decimal(candidate.amount)
+                    resolved_currency = candidate.currency
+                    if resolved_amount <= 0:
+                        pdf_amount, pdf_currency = extract_amount_and_currency_from_pdf_bytes(pdf_bytes)
+                        if pdf_amount is not None and pdf_amount > 0:
+                            resolved_amount = pdf_amount
+                            resolved_currency = pdf_currency or resolved_currency
                     pdf_path = self.runtime_services.storage.save_invoice_pdf(candidate.invoice_id, pdf_bytes)
                     invoice = Invoice(
                         invoice_id=candidate.invoice_id,
                         user_id=user.id,
                         vehicle_id=vehicle.id,
-                        amount=float(candidate.amount),
-                        currency=candidate.currency,
+                        amount=float(resolved_amount),
+                        currency=resolved_currency,
                         charge_started_at=candidate.started_at,
                         location=candidate.location,
                         pdf_path=pdf_path,
@@ -118,7 +137,10 @@ class InvoiceSyncService:
         emailed_recipients: list[str] = []
         delivery_mode = "none"
         email_settings = user.email_settings
-        if created_invoices and email_settings and email_settings.recipients_csv:
+        selected_targets = {
+            item.strip() for item in (email_settings.accounting_targets_csv or "").split(",") if item.strip()
+        } if email_settings else set()
+        if created_invoices and email_settings and (email_settings.recipients_csv or "Circula" in selected_targets):
             recipients = [item.strip() for item in email_settings.recipients_csv.split(",") if item.strip()]
             subject = email_settings.subject_template.format(email=user.email, count=len(created_invoices))
             source_label = mode_label(sync_mode)
@@ -127,10 +149,20 @@ class InvoiceSyncService:
                 f"fuer {user.email} verarbeitet. "
                 f"Die PDFs liegen im Datenverzeichnis und koennen im Dashboard heruntergeladen werden."
             )
-            attachments = [invoice.pdf_path for invoice in created_invoices if email_settings.attach_pdf]
-            delivery_mode = self.runtime_services.emailer.send_summary(recipients, subject, body, attachments)
-            emailed_recipients = recipients
-            self._deliver_accounting_exports(user, email_settings, created_invoices)
+            target_recipients, cc_recipients, from_email, attachments = self._resolve_delivery_targets(
+                email_settings,
+                created_invoices,
+                recipients,
+            )
+            delivery_mode = self.runtime_services.emailer.send_summary(
+                target_recipients,
+                subject,
+                body,
+                attachments,
+                from_email=from_email,
+                cc_recipients=cc_recipients,
+            )
+            emailed_recipients = [*target_recipients, *cc_recipients]
 
         logger.info(
             "Invoice sync finished for %s: mode=%s created=%s skipped=%s emailed=%s delivery_mode=%s",
@@ -149,12 +181,54 @@ class InvoiceSyncService:
             sync_mode=sync_mode,
         )
 
-    def _deliver_accounting_exports(self, user: User, email_settings: EmailSetting, created_invoices: list[Invoice]) -> None:
+    def _refresh_existing_invoice_metadata(
+        self,
+        existing_invoices: list[Invoice],
+        sessions: list,
+    ) -> int:
+        """Repair old invoice rows with fresh Tesla history data or stored PDF totals."""
+
+        sessions_by_invoice_id = {session.invoice_id: session for session in sessions}
+        repaired_count = 0
+
+        for invoice in existing_invoices:
+            updated = False
+            session = sessions_by_invoice_id.get(invoice.invoice_id)
+            if session is not None:
+                updated = self._apply_invoice_metadata(
+                    invoice,
+                    amount=session.amount,
+                    currency=session.currency,
+                    location=session.location,
+                )
+
+            if self._invoice_amount_decimal(invoice) <= 0:
+                pdf_amount, pdf_currency = extract_amount_and_currency_from_pdf_path(invoice.pdf_path)
+                updated = self._apply_invoice_metadata(
+                    invoice,
+                    amount=pdf_amount,
+                    currency=pdf_currency,
+                    location=None,
+                ) or updated
+
+            if updated:
+                repaired_count += 1
+
+        return repaired_count
+
+    def _resolve_delivery_targets(
+        self,
+        email_settings: EmailSetting,
+        created_invoices: list[Invoice],
+        recipients: list[str],
+    ) -> tuple[list[str], list[str], str | None, list[str]]:
         selected_targets = {
             item.strip() for item in (email_settings.accounting_targets_csv or "").split(",") if item.strip()
         }
+        attach_pdf = email_settings.attach_pdf or "Circula" in selected_targets
+        attachments = [invoice.pdf_path for invoice in created_invoices if attach_pdf]
         if "Circula" not in selected_targets or not created_invoices:
-            return
+            return recipients, [], None, attachments
 
         if not email_settings.employee_sender_email:
             raise ValueError(
@@ -162,20 +236,7 @@ class InvoiceSyncService:
                 "Bitte in den Versand-Einstellungen `Mitarbeiter-E-Mail fuer Circula` setzen."
             )
 
-        attachments = [invoice.pdf_path for invoice in created_invoices if email_settings.attach_pdf]
-        if not attachments:
-            return
-
-        self.runtime_services.emailer.send_message(
-            recipients=[CIRCULA_RECEIPT_ADDRESS],
-            subject=f"Tesla-Rechnungen fuer Circula - {user.email}",
-            body=(
-                "Automatischer Tesla-Rechnungsversand fuer Circula. "
-                "Die angehaengten PDFs stammen aus dem aktuellen Tesla-Sync."
-            ),
-            attachment_paths=attachments,
-            from_email=email_settings.employee_sender_email,
-        )
+        return [CIRCULA_RECEIPT_ADDRESS], recipients, email_settings.employee_sender_email, attachments
 
     def sync_all_users(self) -> list[tuple[str, SyncSummary]]:
         users = self.db.scalars(select(User)).all()
@@ -250,6 +311,41 @@ class InvoiceSyncService:
             currency,
             location,
         )
+
+    def _apply_invoice_metadata(
+        self,
+        invoice: Invoice,
+        *,
+        amount: Decimal | None,
+        currency: str | None,
+        location: str | None,
+    ) -> bool:
+        """Update a stored invoice only when better metadata is available."""
+
+        updated = False
+        current_amount = self._invoice_amount_decimal(invoice)
+        if amount is not None and amount > 0 and current_amount <= 0:
+            invoice.amount = float(amount)
+            updated = True
+
+        normalized_currency = (currency or "").strip().upper()
+        if normalized_currency and (not invoice.currency or invoice.currency.strip().upper() != normalized_currency):
+            invoice.currency = normalized_currency
+            updated = True
+
+        normalized_location = (location or "").strip()
+        if normalized_location and (not invoice.location or invoice.location == "Tesla Supercharger"):
+            invoice.location = normalized_location
+            updated = True
+
+        return updated
+
+    def _invoice_amount_decimal(self, invoice: Invoice) -> Decimal:
+        try:
+            return Decimal(str(invoice.amount or 0))
+        except Exception:
+            logger.warning("Stored invoice amount could not be parsed. invoice_id=%s", invoice.invoice_id)
+            return Decimal("0.00")
 
     def _store_last_error(self, user_id: int, message: str) -> None:
         accounts = self.db.scalars(select(TeslaAccount).where(TeslaAccount.user_id == user_id)).all()

@@ -13,7 +13,8 @@ Im kombinierten Repository liegt der eigentliche Anwendungscode unter `saas/`.
 - VIN-Verwaltung, Testmail und Rechnungsarchiv
 - offizieller Tesla-Fleet-Login fuer Endkunden
 - inoffizieller Tesla-Token-Import fuer Self-Hosted-Tests ohne Fleet-Billing
-- separates Admin-Menue fuer Betreiber mit Fleet-Public-Key, Partner-Register-Button und Debug-Werkzeugen
+- separates Admin-Menue fuer Betreiber mit Fleet-Public-Key, Partner-Register-Button, Debug-Werkzeugen und Registrierungsuebersicht
+- Admin-Cleanup fuer alte Demo-Rechnungen und automatische Live-Betrags-Reparatur
 - Demo-Fallback, falls noch kein echter Tesla-Zugang verbunden ist
 - Circula als erster einfacher Buchhaltungsversand
 
@@ -63,7 +64,7 @@ Ohne veroeffentlichtes Image kann Unraid zwar das Template sehen, aber den Conta
 3. Konto registrieren
 4. im Dashboard offiziellen Fleet-Login starten
 5. Empfaenger speichern und optional `Circula` aktivieren
-6. falls Betreiber: `/admin` oeffnen fuer Testmail-Override, manuelle VINs und inoffiziellen Token-Import
+6. falls Betreiber: `/admin` oeffnen fuer Testmail-Override, manuelle VINs, Demo-Cleanup und inoffiziellen Token-Import
 7. eine VIN pruefen
 8. `Testrechnung senden` pruefen
 9. falls Betreiber: Fleet-Public-Key erzeugen und Partner-Status pruefen

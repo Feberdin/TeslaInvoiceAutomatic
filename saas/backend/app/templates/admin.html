@@ -183,7 +183,35 @@ Debug: If the Fleet login keeps failing with 412, inspect the status badges, the
               <button id="debug-owner-connect-button" class="secondary" type="button">Inoffiziellen Zugang speichern</button>
             </div>
           </section>
+
+          <section class="debug-card">
+            <p class="eyebrow">Live Cleanup</p>
+            <h3>Demo-Archiv bereinigen</h3>
+            <p class="helper">
+              Sobald der Live-Betrieb aktiv ist, kannst du hier alle alten Demo-Rechnungen samt gespeicherter Demo-PDFs
+              aus dem Archiv entfernen. Live-Rechnungen ueber Fleet API oder den inoffiziellen Import bleiben unberuehrt.
+            </p>
+            <div class="button-row">
+              <button id="debug-purge-demo-button" class="secondary" type="button">Demo-Rechnungen loeschen</button>
+            </div>
+          </section>
         </div>
+      </article>
+
+      <article class="panel">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Registrierungen</p>
+            <h2>Beta-Nutzer und Fahrzeuge</h2>
+          </div>
+          <div class="inline-pills">
+            <span id="admin-user-count-pill" class="soft-pill">Wird geladen</span>
+          </div>
+        </div>
+        <p class="helper">
+          Diese Uebersicht zeigt dir, wer sich registriert hat, welcher Tesla-Weg aktuell aktiv ist und welche Fahrzeuge bereits verknuepft wurden.
+        </p>
+        <div id="admin-user-list" class="stack compact-stack"></div>
       </article>
 
       <article class="panel">

@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 import hashlib
+import logging
 from pathlib import Path
 from urllib import parse
 
@@ -22,6 +23,7 @@ from app.auth import clear_session_user, get_session_user_id, hash_password, set
 from app.config import get_settings
 from app.database import get_db_session
 from app.errors import InvoiceDownloadError, TeslaApiError, TeslaAuthenticationError, TeslaTokenImportError
+from app.invoice_amounts import extract_amount_and_currency_from_pdf_path
 from app.models import EmailSetting, Invoice, TeslaAccount, User, Vehicle
 from app.pdf_utils import generate_demo_invoice_pdf
 from app.schemas import (
@@ -40,6 +42,7 @@ from app.schemas import (
     VehicleCreateRequest,
     VehicleResponse,
     AdminActionResponse,
+    AdminRegisteredUserResponse,
 )
 from app.services.emailer import DeliveryEmailService
 from app.services.tesla_fleet import TeslaFleetApiClient, build_tesla_authorization_request, tesla_oauth_available
@@ -70,6 +73,7 @@ settings = get_settings()
 AVAILABLE_ACCOUNTING_TARGETS = ["Circula", "DATEV", "Lexoffice", "sevDesk", "Paperless", "Dropbox", "Google Drive"]
 TESLA_OAUTH_STATE_SESSION_KEY = "tesla_oauth_state"
 partner_admin_service = TeslaPartnerAdminService(settings)
+logger = logging.getLogger(__name__)
 
 
 def _runtime_services() -> RuntimeServices:
@@ -149,6 +153,12 @@ def _extract_region_base_url(region_payload: dict[str, object]) -> str | None:
     return None
 
 
+def _selected_accounting_targets(email_settings: EmailSetting | None) -> set[str]:
+    if email_settings is None or not email_settings.accounting_targets_csv:
+        return set()
+    return {item.strip() for item in email_settings.accounting_targets_csv.split(",") if item.strip()}
+
+
 def _serialize_current_user(db: Session, user: User) -> CurrentUserResponse:
     account = _active_sync_account(user)
     preferred_live_sync_mode = normalize_preferred_live_sync_mode(getattr(user, "preferred_live_sync_mode", "auto"))
@@ -205,6 +215,41 @@ def _serialize_current_user(db: Session, user: User) -> CurrentUserResponse:
         is_admin=_is_admin(user),
         admin_path="/admin" if _is_admin(user) else None,
     )
+
+
+def _coerce_invoice_amount(invoice: Invoice) -> float:
+    try:
+        return float(invoice.amount or 0)
+    except Exception:
+        logger.warning("Stored invoice amount could not be converted to float. invoice_id=%s", invoice.invoice_id)
+        return 0.0
+
+
+def _repair_invoices_from_stored_pdfs(db: Session, invoices: list[Invoice]) -> int:
+    """Backfill missing amounts from already downloaded PDFs so existing live history becomes readable."""
+
+    repaired_count = 0
+    for invoice in invoices:
+        current_amount = _coerce_invoice_amount(invoice)
+        if current_amount > 0 and invoice.currency:
+            continue
+
+        parsed_amount, parsed_currency = extract_amount_and_currency_from_pdf_path(invoice.pdf_path)
+        updated = False
+        if parsed_amount is not None and parsed_amount > 0 and current_amount <= 0:
+            invoice.amount = float(parsed_amount)
+            updated = True
+        normalized_currency = (parsed_currency or "").strip().upper()
+        if normalized_currency and (not invoice.currency or invoice.currency.strip().upper() != normalized_currency):
+            invoice.currency = normalized_currency
+            updated = True
+        if updated:
+            repaired_count += 1
+
+    if repaired_count:
+        db.commit()
+
+    return repaired_count
 
 
 @router.get("/health", summary="Health endpoint for container checks")
@@ -306,6 +351,78 @@ def fleet_admin_status(request: Request, db: Session = Depends(get_db_session)) 
         last_verify_message=status.last_verify_message,
         last_verify_http_status=status.last_verify_http_status,
         last_verify_at=status.last_verify_at,
+    )
+
+
+@router.get("/admin/users", response_model=list[AdminRegisteredUserResponse], summary="List registered beta users with their vehicles")
+def admin_users(request: Request, db: Session = Depends(get_db_session)) -> list[AdminRegisteredUserResponse]:
+    _require_admin_user(request, db)
+    users = db.scalars(
+        select(User)
+        .options(
+            selectinload(User.tesla_accounts).selectinload(TeslaAccount.vehicles),
+            selectinload(User.vehicles).selectinload(Vehicle.tesla_account),
+        )
+        .order_by(User.created_at.desc(), User.id.desc())
+    ).all()
+    serialized_users: list[AdminRegisteredUserResponse] = []
+    for user in users:
+        active_account = _active_sync_account(user)
+        serialized_users.append(
+            AdminRegisteredUserResponse(
+                id=user.id,
+                email=user.email,
+                created_at=user.created_at,
+                active_sync_mode=_active_sync_mode(user),
+                tesla_connection_mode=active_account.mode if active_account else "none",
+                last_synced_at=active_account.last_synced_at if active_account else None,
+                vehicles=[
+                    VehicleResponse(
+                        id=vehicle.id,
+                        vin=vehicle.vin,
+                        nickname=vehicle.nickname,
+                        model=vehicle.model,
+                        account_mode=vehicle.tesla_account.mode if vehicle.tesla_account else "demo",
+                    )
+                    for vehicle in sorted(user.vehicles, key=lambda item: item.id)
+                ],
+            )
+        )
+    return serialized_users
+
+
+@router.post("/admin/demo/purge", response_model=AdminActionResponse, summary="Delete all stored demo invoices and their PDFs")
+def purge_demo_invoices(request: Request, db: Session = Depends(get_db_session)) -> AdminActionResponse:
+    _require_admin_user(request, db)
+    demo_invoices = db.scalars(select(Invoice).where(Invoice.source == "demo")).all()
+    if not demo_invoices:
+        return AdminActionResponse(
+            status="noop",
+            message="Es wurden keine Demo-Rechnungen gefunden. Das Archiv enthaelt bereits nur Live-Daten.",
+            http_status=200,
+        )
+
+    deleted_invoice_count = len(demo_invoices)
+    pdf_paths = {invoice.pdf_path for invoice in demo_invoices if invoice.pdf_path}
+    for invoice in demo_invoices:
+        db.delete(invoice)
+    db.commit()
+
+    deleted_file_count = 0
+    for pdf_path in sorted(pdf_paths):
+        try:
+            Path(pdf_path).unlink(missing_ok=True)
+            deleted_file_count += 1
+        except OSError:
+            logger.exception("Demo invoice PDF could not be deleted during cleanup. path=%s", pdf_path)
+
+    return AdminActionResponse(
+        status="success",
+        message=(
+            f"{deleted_invoice_count} Demo-Rechnungen wurden aus dem Archiv entfernt. "
+            f"{deleted_file_count} PDF-Datei(en) wurden im Datenverzeichnis geloescht."
+        ),
+        http_status=200,
     )
 
 
@@ -607,12 +724,12 @@ def send_test_email(
     db: Session = Depends(get_db_session),
 ) -> dict[str, object]:
     user = _get_current_user(request, db)
-    recipients = (
+    copy_recipients = (
         [payload.recipient_override]
         if payload.recipient_override
         else [item.strip() for item in (user.email_settings.recipients_csv if user.email_settings else "").split(",") if item.strip()]
     )
-    if not recipients:
+    if not copy_recipients and "Circula" not in _selected_accounting_targets(user.email_settings):
         raise HTTPException(
             status_code=400,
             detail="Bitte zuerst mindestens einen Empfänger speichern oder eine Test-E-Mail-Adresse angeben.",
@@ -632,20 +749,45 @@ def send_test_email(
             ]
         ),
     )
+    selected_targets = _selected_accounting_targets(user.email_settings)
+    target_recipients = copy_recipients
+    cc_recipients: list[str] = []
+    from_email: str | None = None
+    message = (
+        "Dies ist eine Testrechnung aus dem TeslaInvoiceAutomatic SaaS MVP. "
+        "Wenn diese Nachricht ankommt, funktioniert dein aktueller SMTP-Pfad."
+    )
+    if "Circula" in selected_targets:
+        if not user.email_settings or not user.email_settings.employee_sender_email:
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "Circula ist aktiv, aber es fehlt die Mitarbeiter-Absenderadresse. "
+                    "Bitte zuerst in den Versand-Einstellungen `Mitarbeiter-E-Mail fuer Circula` setzen."
+                ),
+            )
+        target_recipients = ["receipts@in.circula.com"]
+        cc_recipients = copy_recipients
+        from_email = user.email_settings.employee_sender_email
+        message = (
+            "Dies ist eine Circula-Testrechnung aus dem TeslaInvoiceAutomatic SaaS MVP. "
+            "Circula ist Hauptempfaenger, gespeicherte Empfaenger laufen als CC mit."
+        )
+
     delivery_mode = DeliveryEmailService(settings.data_dir, settings).send_message(
-        recipients=recipients,
+        recipients=target_recipients,
         subject=f"Testrechnung fuer {user.email}",
-        body=(
-            "Dies ist eine Testrechnung aus dem TeslaInvoiceAutomatic SaaS MVP. "
-            "Wenn diese Nachricht ankommt, funktioniert dein aktueller SMTP-Pfad."
-        ),
+        body=message,
         attachment_paths=[pdf_path],
+        from_email=from_email,
+        cc_recipients=cc_recipients,
     )
 
     return {
         "message": "Testmail wurde verarbeitet.",
         "delivery_mode": delivery_mode,
-        "recipients": recipients,
+        "recipients": target_recipients,
+        "cc_recipients": cc_recipients,
     }
 
 
@@ -686,6 +828,7 @@ def list_invoices(request: Request, db: Session = Depends(get_db_session)) -> li
         .options(selectinload(Invoice.vehicle))
         .order_by(Invoice.charge_started_at.desc())
     ).all()
+    _repair_invoices_from_stored_pdfs(db, invoices)
     return [InvoiceResponse(**serialize_invoice(invoice, settings.app_base_url)) for invoice in invoices]
 
 

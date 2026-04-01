@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import sys
 import unittest
+from decimal import Decimal
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -101,8 +102,30 @@ class TeslaFleetTests(unittest.TestCase):
 
         self.assertEqual(1, len(sessions))
         self.assertEqual("fleet-invoice-1", sessions[0].invoice_id)
+        self.assertEqual(Decimal("18.75"), sessions[0].amount)
         self.assertEqual("EUR", sessions[0].currency)
         self.assertEqual("Supercharger Berlin Sued", sessions[0].location)
+
+    def test_parse_fleet_charging_history_with_string_amount_and_currency_symbol(self) -> None:
+        payload = {
+            "response": [
+                {
+                    "vin": "LRW3E7FS5RC049963",
+                    "chargeStartDateTime": "2026-04-01T10:15:00Z",
+                    "siteLocationName": "Rosengarten, Germany",
+                    "invoiceAmount": "EUR 28,90",
+                    "invoices": [
+                        {"id": "fleet-invoice-2"},
+                    ],
+                }
+            ]
+        }
+
+        sessions = parse_fleet_charging_history(payload, requested_vin="LRW3E7FS5RC049963")
+
+        self.assertEqual(1, len(sessions))
+        self.assertEqual(Decimal("28.90"), sessions[0].amount)
+        self.assertEqual("EUR", sessions[0].currency)
 
 
 if __name__ == "__main__":

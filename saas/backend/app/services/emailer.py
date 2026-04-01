@@ -43,8 +43,16 @@ class DeliveryEmailService:
         attachment_paths: list[str],
         *,
         from_email: str | None = None,
+        cc_recipients: list[str] | None = None,
     ) -> str:
-        return self.send_message(recipients, subject, body, attachment_paths, from_email=from_email)
+        return self.send_message(
+            recipients,
+            subject,
+            body,
+            attachment_paths,
+            from_email=from_email,
+            cc_recipients=cc_recipients,
+        )
 
     def send_message(
         self,
@@ -54,12 +62,15 @@ class DeliveryEmailService:
         attachment_paths: list[str],
         *,
         from_email: str | None = None,
+        cc_recipients: list[str] | None = None,
     ) -> str:
         effective_from_email = from_email or self.default_from_email
+        effective_cc = [recipient for recipient in (cc_recipients or []) if recipient]
         timestamp = datetime.now(timezone.utc).isoformat()
         record = (
             f"[{timestamp}] from={effective_from_email} "
             f"to={','.join(recipients)} subject={subject!r} "
+            f"cc={','.join(effective_cc)} "
             f"attachments={attachment_paths!r} body={body!r}\n"
         )
         with self.outbox_path.open("a", encoding="utf-8") as handle:
@@ -79,6 +90,8 @@ class DeliveryEmailService:
         message = EmailMessage()
         message["From"] = effective_from_email
         message["To"] = ", ".join(recipients)
+        if effective_cc:
+            message["Cc"] = ", ".join(effective_cc)
         message["Subject"] = subject
         message.set_content(body)
 
@@ -98,13 +111,14 @@ class DeliveryEmailService:
 
         try:
             logger.debug(
-                "Attempting SMTP delivery. host=%s port=%s tls=%s ssl=%s username_set=%s recipients=%s",
+                "Attempting SMTP delivery. host=%s port=%s tls=%s ssl=%s username_set=%s recipients=%s cc=%s",
                 self.smtp_host,
                 self.smtp_port,
                 self.smtp_use_tls,
                 self.smtp_use_ssl,
                 bool(self.smtp_username),
                 recipients,
+                effective_cc,
             )
             if self.smtp_use_ssl:
                 server = smtplib.SMTP_SSL(self.smtp_host, self.smtp_port, timeout=20)
@@ -119,16 +133,22 @@ class DeliveryEmailService:
                 server.send_message(message)
         except Exception as exc:
             logger.exception(
-                "SMTP delivery failed. host=%s port=%s tls=%s ssl=%s recipients=%s",
+                "SMTP delivery failed. host=%s port=%s tls=%s ssl=%s recipients=%s cc=%s",
                 self.smtp_host,
                 self.smtp_port,
                 self.smtp_use_tls,
                 self.smtp_use_ssl,
                 recipients,
+                effective_cc,
             )
             raise RuntimeError(
                 "SMTP-Versand fehlgeschlagen. Bitte Host, Port, TLS/SSL, Benutzername und Passwort in Unraid pruefen."
             ) from exc
 
-        logger.info("SMTP delivery succeeded. recipients=%s attachments=%s", recipients, len(attachment_paths))
+        logger.info(
+            "SMTP delivery succeeded. recipients=%s cc=%s attachments=%s",
+            recipients,
+            effective_cc,
+            len(attachment_paths),
+        )
         return "smtp"

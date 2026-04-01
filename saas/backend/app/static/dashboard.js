@@ -342,8 +342,9 @@ async function sendTestEmail() {
     method: "POST",
     body: JSON.stringify({ recipient_override: null }),
   });
+  const ccRecipients = (result.cc_recipients || []).join(", ");
   showNotice(
-    `Testmail wurde verarbeitet. Modus: ${result.delivery_mode}. Empfaenger: ${(result.recipients || []).join(", ") || "keine"}.`
+    `Testmail wurde verarbeitet. Modus: ${result.delivery_mode}. Empfaenger: ${(result.recipients || []).join(", ") || "keine"}${ccRecipients ? ` | CC: ${ccRecipients}` : ""}.`
   );
 }
 

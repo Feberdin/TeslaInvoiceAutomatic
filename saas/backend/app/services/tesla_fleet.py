@@ -8,11 +8,12 @@ Debug: If customer login succeeds but sync fails, inspect the stored `fleet_api_
 from __future__ import annotations
 
 import json
+import re
 import secrets
 import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from typing import TYPE_CHECKING, Any
 from urllib import error, parse, request
 
@@ -41,9 +42,14 @@ AMOUNT_CANDIDATE_KEYS = (
     "totalAmount",
     "price",
     "cost",
+    "totalCost",
+    "chargeCost",
+    "amount_due",
+    "amountDue",
 )
 VEHICLE_RESULT_KEYS = ("response", "results", "data", "vehicles")
 CHARGING_RESULT_KEYS = ("response", "results", "data", "charging_history", "history")
+FLOAT_PATTERN = re.compile(r"-?(?:\d{1,3}(?:[.\s]\d{3})+|\d+)(?:[.,]\d{2})")
 
 
 @dataclass(frozen=True)
@@ -443,12 +449,12 @@ def _extract_amount(*mappings: dict[str, Any]) -> Decimal:
         for key in AMOUNT_CANDIDATE_KEYS:
             if key not in mapping:
                 continue
-            parsed_value = _parse_decimal(mapping.get(key))
+            parsed_value = _coerce_amount_value(mapping.get(key))
             if parsed_value is not None:
                 return parsed_value
         for value in mapping.values():
             if isinstance(value, dict):
-                parsed_value = _parse_decimal(value.get("amount") or value.get("value"))
+                parsed_value = _coerce_amount_value(value)
                 if parsed_value is not None:
                     return parsed_value
     return Decimal("0.00")
@@ -462,9 +468,9 @@ def _extract_currency(*mappings: dict[str, Any]) -> str:
                 return currency.upper()
         for value in mapping.values():
             if isinstance(value, dict):
-                currency = _text(value.get("currency") or value.get("currencyCode"))
+                currency = _detect_currency(value)
                 if currency:
-                    return currency.upper()
+                    return currency
     return DEFAULT_CURRENCY
 
 
@@ -475,11 +481,60 @@ def _parse_decimal(value: Any) -> Decimal | None:
         return value
     if isinstance(value, (int, float)):
         return Decimal(str(value))
-    text = str(value).strip().replace(",", ".")
-    try:
-        return Decimal(text)
-    except Exception:
+    text = str(value).strip()
+    matched = FLOAT_PATTERN.search(text)
+    if matched is None:
         return None
+    normalized = matched.group(0).replace(" ", "")
+    if "," in normalized and "." in normalized:
+        normalized = normalized.replace(".", "").replace(",", ".")
+    else:
+        normalized = normalized.replace(",", ".")
+    try:
+        return Decimal(normalized)
+    except InvalidOperation:
+        return None
+
+
+def _coerce_amount_value(value: Any) -> Decimal | None:
+    if isinstance(value, dict):
+        for nested_key in ("amount", "value", "cost", "price", "total", "totalAmount"):
+            if nested_key in value:
+                nested_amount = _parse_decimal(value.get(nested_key))
+                if nested_amount is not None:
+                    return nested_amount
+        return None
+    return _parse_decimal(value)
+
+
+def _detect_currency(value: Any) -> str | None:
+    if isinstance(value, dict):
+        for key in ("currency", "currencyCode", "displayCurrency", "currency_code"):
+            if key in value:
+                detected = _detect_currency(value.get(key))
+                if detected:
+                    return detected
+        for nested_value in value.values():
+            if isinstance(nested_value, dict):
+                detected = _detect_currency(nested_value)
+                if detected:
+                    return detected
+        return None
+
+    text = str(value or "").strip().upper()
+    if not text:
+        return None
+    if "EUR" in text or "€" in text:
+        return "EUR"
+    if "USD" in text or "$" in text:
+        return "USD"
+    if "GBP" in text or "£" in text:
+        return "GBP"
+    if "CHF" in text:
+        return "CHF"
+    if len(text) == 3 and text.isalpha():
+        return text
+    return None
 
 
 def _parse_datetime(value: Any) -> datetime | None:

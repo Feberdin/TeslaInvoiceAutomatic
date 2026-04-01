@@ -242,3 +242,13 @@ class AdminActionResponse(BaseModel):
     status: str
     message: str
     http_status: int | None = None
+
+
+class AdminRegisteredUserResponse(BaseModel):
+    id: int
+    email: str
+    created_at: datetime
+    active_sync_mode: str
+    tesla_connection_mode: str
+    last_synced_at: datetime | None
+    vehicles: list[VehicleResponse]

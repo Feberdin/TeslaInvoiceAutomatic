@@ -5,6 +5,7 @@ Debug: If Fleet setup or debug tools stop working, compare `/api/v1/admin/fleet/
 
 let currentAdminStatus = null;
 let currentProfile = null;
+let currentAdminUsers = [];
 
 const MODE_LABELS = {
   fleet_oauth: "Fleet API",
@@ -202,6 +203,51 @@ function renderProfile(profile) {
   }
 }
 
+function renderRegisteredUsers(users) {
+  currentAdminUsers = users;
+  const container = document.getElementById("admin-user-list");
+  const pill = document.getElementById("admin-user-count-pill");
+  container.innerHTML = "";
+  pill.textContent = `${users.length} Konto/Konten`;
+
+  if (!users.length) {
+    container.innerHTML = '<p class="helper">Noch keine Registrierungen vorhanden.</p>';
+    return;
+  }
+
+  for (const user of users) {
+    const card = document.createElement("div");
+    card.className = "list-item list-item-wrap";
+    const vehicleTags = user.vehicles.length
+      ? user.vehicles
+          .map((vehicle) => {
+            const tagClass = vehicle.account_mode === "fleet_oauth" ? "tag-live" : "tag-demo";
+            return `
+              <div class="admin-vehicle-row">
+                <strong>${vehicle.nickname}</strong>
+                <span class="helper">${vehicle.vin}</span>
+                <span class="mini-tag ${tagClass}">${modeLabel(vehicle.account_mode)}</span>
+              </div>
+            `;
+          })
+          .join("")
+      : '<p class="helper">Noch kein Fahrzeug registriert.</p>';
+
+    card.innerHTML = `
+      <div class="list-copy">
+        <strong>${user.email}</strong>
+        <div class="helper">
+          Registriert: ${new Date(user.created_at).toLocaleString("de-DE")} |
+          Aktiv: ${modeLabel(user.active_sync_mode)} |
+          Letzter Sync: ${user.last_synced_at ? new Date(user.last_synced_at).toLocaleString("de-DE") : "noch nie"}
+        </div>
+        <div class="admin-user-vehicles">${vehicleTags}</div>
+      </div>
+    `;
+    container.appendChild(card);
+  }
+}
+
 async function refreshStatus() {
   const status = await apiRequest("/api/v1/admin/fleet/status");
   renderStatus(status);
@@ -212,13 +258,20 @@ async function refreshProfile() {
   renderProfile(profile);
 }
 
+async function refreshRegisteredUsers() {
+  const users = await apiRequest("/api/v1/admin/users");
+  renderRegisteredUsers(users);
+}
+
 async function refreshAdminPage() {
-  const [status, profile] = await Promise.all([
+  const [status, profile, users] = await Promise.all([
     apiRequest("/api/v1/admin/fleet/status"),
     apiRequest("/api/v1/me"),
+    apiRequest("/api/v1/admin/users"),
   ]);
   renderStatus(status);
   renderProfile(profile);
+  renderRegisteredUsers(users);
 }
 
 async function generateKeyPair() {
@@ -259,7 +312,10 @@ async function sendDebugTestEmail() {
     body: JSON.stringify({ recipient_override: recipientOverride }),
   });
   const recipients = Array.isArray(payload.recipients) ? payload.recipients.join(", ") : "";
-  showNotice(`Testmail verarbeitet. Modus: ${payload.delivery_mode}. Empfaenger: ${recipients || "keine"}.`);
+  const ccRecipients = Array.isArray(payload.cc_recipients) ? payload.cc_recipients.join(", ") : "";
+  showNotice(
+    `Testmail verarbeitet. Modus: ${payload.delivery_mode}. Empfaenger: ${recipients || "keine"}${ccRecipients ? ` | CC: ${ccRecipients}` : ""}.`
+  );
 }
 
 async function addVehicle() {
@@ -272,13 +328,13 @@ async function addVehicle() {
   showNotice(`VIN ${payload.vin} wurde gespeichert.`);
   document.getElementById("debug-vin").value = "";
   document.getElementById("debug-vin-nickname").value = "";
-  await refreshProfile();
+  await Promise.all([refreshProfile(), refreshRegisteredUsers()]);
 }
 
 async function deleteVehicle(vehicleId) {
   const payload = await apiRequest(`/api/v1/vehicles/${vehicleId}`, { method: "DELETE" });
   showNotice(payload.message);
-  await refreshProfile();
+  await Promise.all([refreshProfile(), refreshRegisteredUsers()]);
 }
 
 async function connectOwnerImport() {
@@ -295,7 +351,23 @@ async function connectOwnerImport() {
   document.getElementById("debug-owner-cache-json").value = "";
   document.getElementById("debug-owner-refresh-token").value = "";
   document.getElementById("debug-owner-access-token").value = "";
-  await refreshProfile();
+  await Promise.all([refreshProfile(), refreshRegisteredUsers()]);
+}
+
+async function purgeDemoInvoices() {
+  const confirmed = window.confirm(
+    "Alle gespeicherten Demo-Rechnungen und Demo-PDFs werden geloescht. Live-Rechnungen bleiben erhalten. Fortfahren?"
+  );
+  if (!confirmed) {
+    return;
+  }
+
+  const payload = await apiRequest("/api/v1/admin/demo/purge", {
+    method: "POST",
+    body: JSON.stringify({}),
+  });
+  showNotice(payload.message);
+  await Promise.all([refreshProfile(), refreshRegisteredUsers()]);
 }
 
 document.addEventListener("DOMContentLoaded", async () => {
@@ -316,6 +388,9 @@ document.addEventListener("DOMContentLoaded", async () => {
   );
   document.getElementById("debug-owner-connect-button").addEventListener("click", () =>
     connectOwnerImport().catch((error) => showNotice(error.message, "error"))
+  );
+  document.getElementById("debug-purge-demo-button").addEventListener("click", () =>
+    purgeDemoInvoices().catch((error) => showNotice(error.message, "error"))
   );
 
   try {

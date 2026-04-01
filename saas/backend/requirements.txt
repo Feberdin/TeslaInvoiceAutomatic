@@ -10,3 +10,4 @@ jinja2==3.1.6
 psycopg[binary]==3.2.7
 sqlalchemy==2.0.40
 uvicorn==0.34.0
+pypdf==5.4.0
